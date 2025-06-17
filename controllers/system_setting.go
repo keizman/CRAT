@@ -1,12 +1,14 @@
 package controllers
 
 import (
+	"errors"
 	"net/http"
 
 	"crat/config"
 	"crat/models"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type SystemSettingController struct{}
@@ -49,7 +51,7 @@ func (s *SystemSettingController) UpdateSettings(c *gin.Context) {
 		var setting models.SystemSetting
 		if err := config.DB.Where("key = ?", key).First(&setting).Error; err != nil {
 			// 如果设置不存在，创建新的
-			if err.Error() == "record not found" {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
 				setting = models.SystemSetting{
 					Key:   key,
 					Value: value,
@@ -113,7 +115,7 @@ func (s *SystemSettingController) UpdateSetting(c *gin.Context) {
 	var setting models.SystemSetting
 	if err := config.DB.Where("key = ?", key).First(&setting).Error; err != nil {
 		// 如果设置不存在，创建新的
-		if err.Error() == "record not found" {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			setting = models.SystemSetting{
 				Key:         key,
 				Value:       req.Value,

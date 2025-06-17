@@ -78,17 +78,18 @@ class CRATApp {
         try {
             this.showLoading(true);
             
-            // 加载构建信息
+            // 首先加载系统设置
+            await Settings.loadSystemSettings();
+            
+            // 更新平台名称显示
+            this.updatePlatformName();
+            
+            // 然后加载构建信息（需要使用系统设置中的URL）
             await BuildInfo.loadJobNames();
             await BuildInfo.loadBuildInfoList();
             
             // 加载测试项
             await TestTrigger.loadTestItems();
-            
-            // 加载系统设置
-            if (this.isAdmin) {
-                await Settings.loadSystemSettings();
-            }
             
         } catch (error) {
             console.error('Failed to load initial data:', error);
@@ -179,7 +180,15 @@ class CRATApp {
         }
 
         try {
-            // 这里可以添加验证逻辑，检查 Job 是否存在
+            // 检查是否已经存在该Job名称
+            if (BuildInfo.jobNames.includes(jobName)) {
+                this.showError('该 Job 名称已存在');
+                return;
+            }
+
+            // 添加到jobNames数组中
+            BuildInfo.jobNames.push(jobName);
+            
             jobNameInput.value = '';
             await BuildInfo.loadBuildInfoList();
             this.showSuccess('Job 名称已添加到显示列表');
@@ -219,9 +228,28 @@ class CRATApp {
             }
 
             await Settings.updateSystemSettings(settings);
+            
+            // 如果项目名称发生改变，更新顶部显示
+            if (settings.project_name) {
+                this.updatePlatformName();
+            }
+            
+            // 如果URL配置发生改变，重新加载构建信息以使用新的URL
+            if (settings.package_build_info_base_url || settings.package_download_base_url) {
+                await BuildInfo.loadBuildInfoList();
+            }
+            
             this.showSuccess('系统设置已保存');
         } catch (error) {
             this.showError('保存失败：' + error.message);
+        }
+    }
+
+    updatePlatformName() {
+        const platformNameElement = document.querySelector('h1.gradient-text');
+        if (platformNameElement) {
+            const projectName = Settings.getSettingValue('project_name', 'CRAT Platform');
+            platformNameElement.textContent = projectName;
         }
     }
 
@@ -241,6 +269,7 @@ class CRATApp {
 
     showSuccess(message) {
         // 简单的成功提示，可以使用更好的通知组件
+        alert('成功: ' + message);
         console.log('成功: ' + message);
     }
 }

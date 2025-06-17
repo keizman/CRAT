@@ -16,3 +16,8 @@ type TestItem struct {
 	// 关联的部署测试执行历史
 	DeployTestRuns []DeployTestRun `gorm:"foreignKey:TestItemID" json:"deploy_test_runs,omitempty"`
 }
+
+// TableName 指定表名
+func (TestItem) TableName() string {
+	return "test_items"
+}

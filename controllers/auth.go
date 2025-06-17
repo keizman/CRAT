@@ -121,7 +121,14 @@ func (a *AuthController) RefreshToken(c *gin.Context) {
 	oldToken, _ := c.Get("session_token")
 
 	// 生成新令牌
-	newToken, err := middleware.GenerateToken(email.(string), isAdmin.(bool))
+	emailStr, ok := email.(string)
+	isAdminBool, ok2 := isAdmin.(bool)
+	if !ok || !ok2 {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user context"})
+		return
+	}
+	
+	newToken, err := middleware.GenerateToken(emailStr, isAdminBool)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return

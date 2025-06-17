@@ -1,12 +1,17 @@
 package controllers
 
 import (
+	"errors"
+	"log"
 	"net/http"
 	"strconv"
 
+	"crat/config"
+	"crat/models"
 	"crat/services"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type BuildInfoController struct {
@@ -86,8 +91,15 @@ func (b *BuildInfoController) GetBuildsByJobName(c *gin.Context) {
 
 	builds, err := b.buildService.GetBuildInfoByJobName(jobName)
 	if err != nil {
+		// 记录详细错误信息
+		c.Header("Content-Type", "application/json")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+	}
+
+	// 如果没有找到构建信息，返回空数组而不是错误
+	if builds == nil {
+		builds = []models.BuildInfo{}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": builds})
@@ -113,4 +125,62 @@ func (b *BuildInfoController) GetLatestBuildByJobName(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": build})
+}
+
+// DeleteBuildInfo 删除构建信息
+func (b *BuildInfoController) DeleteBuildInfo(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid build ID"})
+		return
+	}
+
+	// 获取用户信息用于日志记录
+	userEmail, _ := c.Get("user_email")
+	
+	// 检查构建信息是否存在
+	var buildInfo models.BuildInfo
+	if err := config.DB.First(&buildInfo, uint(id)).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Build info not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 开启事务删除，确保数据一致性
+	tx := config.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// 删除构建信息（级联删除相关的 deploy_test_runs 记录）
+	if err := tx.Delete(&buildInfo).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 提交事务
+	if err := tx.Commit().Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit transaction"})
+		return
+	}
+
+	// 记录删除操作日志
+	log.Printf("Build info deleted successfully - ID: %d, Job: %s, Build: %d, Deleted by: %v", 
+		id, buildInfo.JobName, buildInfo.BuildNumber, userEmail)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Build info deleted successfully",
+		"deleted_build": gin.H{
+			"id": buildInfo.ID,
+			"job_name": buildInfo.JobName,
+			"build_number": buildInfo.BuildNumber,
+		},
+	})
 }

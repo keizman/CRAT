@@ -28,8 +28,12 @@ func main() {
 	router := setupRouter()
 
 	// 启动服务器
-	log.Printf("Server starting on port %s", config.AppConfig.Server.Port)
-	if err := router.Run(":" + config.AppConfig.Server.Port); err != nil {
+	port := config.AppConfig.Server.Port
+	if port == "" {
+		port = "6000" // 默认端口
+	}
+	log.Printf("Server starting on port %s", port)
+	if err := router.Run(":" + port); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }
@@ -55,7 +59,7 @@ func setupRouter() *gin.Engine {
 			c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
 			c.Header("Pragma", "no-cache")
 			c.Header("Expires", "0")
-		} else if path[:8] == "/assets/" {
+		} else if len(path) >= 8 && path[:8] == "/assets/" {
 			// 静态资源长期缓存（带hash的文件名）
 			c.Header("Cache-Control", "public, max-age=31536000, immutable")
 		}
@@ -97,19 +101,24 @@ func setupRouter() *gin.Engine {
 		authenticated.GET("/test-items/:id/deploy-runs", testItemController.GetDeployTestRuns)
 		authenticated.GET("/deploy-test-runs/:deploy_run_id", testItemController.GetDeployTestRun)
 
+		// 系统设置读取（所有认证用户可访问）
+		authenticated.GET("/settings", systemSettingController.GetSettings)
+		authenticated.GET("/settings/:key", systemSettingController.GetSetting)
+
 		// 需要管理员权限的路由
 		admin := authenticated.Group("/")
 		admin.Use(middleware.AdminRequired())
 		{
+			// 构建信息管理
+			admin.DELETE("/builds/:id", buildInfoController.DeleteBuildInfo)
+
 			// 测试项管理
 			admin.POST("/test-items", testItemController.CreateTestItem)
 			admin.PUT("/test-items/:id", testItemController.UpdateTestItem)
 			admin.DELETE("/test-items/:id", testItemController.DeleteTestItem)
 
-			// 系统设置
-			admin.GET("/settings", systemSettingController.GetSettings)
+			// 系统设置修改（仅管理员可访问）
 			admin.PUT("/settings", systemSettingController.UpdateSettings)
-			admin.GET("/settings/:key", systemSettingController.GetSetting)
 			admin.PUT("/settings/:key", systemSettingController.UpdateSetting)
 		}
 	}

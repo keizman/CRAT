@@ -10,3 +10,8 @@ type SystemSetting struct {
 	Description string    `json:"description"`
 	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }
+
+// TableName 指定表名
+func (SystemSetting) TableName() string {
+	return "system_settings"
+}

@@ -8,6 +8,7 @@ class Settings {
         try {
             const response = await API.getSystemSettings();
             this.currentSettings = response.data || {};
+            console.log('Loaded system settings:', this.currentSettings); // 调试信息
             this.renderSystemSettings();
         } catch (error) {
             console.error('Failed to load system settings:', error);
@@ -19,6 +20,7 @@ class Settings {
         const projectNameInput = document.getElementById('projectName');
         const buildInfoUrlInput = document.getElementById('packageBuildInfoBaseUrl');
         const downloadUrlInput = document.getElementById('packageDownloadBaseUrl');
+        const externalTestServerUrlInput = document.getElementById('externalTestServerUrl');
 
         if (projectNameInput && this.currentSettings.project_name) {
             projectNameInput.value = this.currentSettings.project_name.value || '';
@@ -30,6 +32,10 @@ class Settings {
 
         if (downloadUrlInput && this.currentSettings.package_download_base_url) {
             downloadUrlInput.value = this.currentSettings.package_download_base_url.value || '';
+        }
+
+        if (externalTestServerUrlInput && this.currentSettings.external_test_server_url) {
+            externalTestServerUrlInput.value = this.currentSettings.external_test_server_url.value || '';
         }
     }
 
@@ -84,7 +90,9 @@ class Settings {
 
     // 获取设置值的便捷方法
     static getSettingValue(key, defaultValue = '') {
-        return this.currentSettings[key]?.value || defaultValue;
+        const value = this.currentSettings[key]?.value || defaultValue;
+        console.log(`Getting setting ${key}:`, value); // 调试信息
+        return value;
     }
 
     // 检查设置是否存在
@@ -106,7 +114,8 @@ class Settings {
         const defaultSettings = {
             project_name: 'Autotest Platform',
             package_build_info_base_url: 'http://127.0.0.1:8080/job/',
-            package_download_base_url: 'http://127.0.0.1/build/'
+            package_download_base_url: 'http://127.0.0.1/build/',
+            external_test_server_url: 'http://192.168.1.118:59996'
         };
 
         try {
@@ -176,7 +185,7 @@ class Settings {
         const errors = [];
 
         // 验证 URL 格式
-        const urlFields = ['package_build_info_base_url', 'package_download_base_url'];
+        const urlFields = ['package_build_info_base_url', 'package_download_base_url', 'external_test_server_url'];
         urlFields.forEach(field => {
             if (settings[field]) {
                 try {

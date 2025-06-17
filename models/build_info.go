@@ -14,3 +14,8 @@ type BuildInfo struct {
 	CreatedAt   time.Time       `gorm:"autoCreateTime;index" json:"created_at"`
 	RawData     json.RawMessage `gorm:"type:jsonb" json:"raw_data,omitempty"`
 }
+
+// TableName 指定表名
+func (BuildInfo) TableName() string {
+	return "build_info"
+}

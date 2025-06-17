@@ -81,6 +81,18 @@ export class API {
         return this.get(`/builds/job/${encodeURIComponent(jobName)}/latest`);
     }
 
+    static async deleteBuildInfo(buildId) {
+        console.log(`API: 正在调用删除构建信息接口 - ID: ${buildId}`);
+        try {
+            const result = await this.delete(`/builds/${buildId}`);
+            console.log(`API: 删除构建信息成功 - ID: ${buildId}`, result);
+            return result;
+        } catch (error) {
+            console.error(`API: 删除构建信息失败 - ID: ${buildId}`, error);
+            throw error;
+        }
+    }
+
     // 测试项相关API
     static async getTestItems() {
         return this.get('/test-items');

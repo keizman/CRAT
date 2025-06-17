@@ -3,6 +3,7 @@ package services
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	"crat/config"
@@ -73,14 +74,17 @@ func (s *BuildService) ProcessJenkinsWebhook(data map[string]interface{}) error 
 	if !ok || jobName == "" {
 		return fmt.Errorf("JOB_NAME is required")
 	}
-	buildNumberFloat, ok := data["BUILD_NUMBER"].(float64)
-	if !ok {
-		// 尝试字符串类型
-		if _, ok := data["BUILD_NUMBER"].(string); !ok {
-			return fmt.Errorf("BUILD_NUMBER is required")
+	var buildNumber int
+	if buildNumberFloat, ok := data["BUILD_NUMBER"].(float64); ok {
+		buildNumber = int(buildNumberFloat)
+	} else if buildNumberStr, ok := data["BUILD_NUMBER"].(string); ok {
+		var err error
+		buildNumber, err = strconv.Atoi(buildNumberStr)
+		if err != nil {
+			return fmt.Errorf("invalid BUILD_NUMBER format: %v", err)
 		}
-		// 这里可以添加字符串到数字的转换逻辑
-		buildNumberFloat = 0 // 临时处理
+	} else {
+		return fmt.Errorf("BUILD_NUMBER is required")
 	}
 
 	packagePath, ok := data["PACKAGE_PATH"].(string)
@@ -102,7 +106,7 @@ func (s *BuildService) ProcessJenkinsWebhook(data map[string]interface{}) error 
 	// 创建构建信息记录
 	buildInfo := &models.BuildInfo{
 		JobName:     jobName,
-		BuildNumber: int(buildNumberFloat),
+		BuildNumber: buildNumber,
 		PackagePath: packagePath,
 		BuildUser:   buildUser,
 		CreatedAt:   time.Now(),

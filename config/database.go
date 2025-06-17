@@ -13,6 +13,10 @@ var DB *gorm.DB
 func InitDatabase() {
 	var err error
 
+	if AppConfig.Database.DSN == "" {
+		log.Fatalf("Database DSN is required")
+	}
+
 	DB, err = gorm.Open(postgres.Open(AppConfig.Database.DSN), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)

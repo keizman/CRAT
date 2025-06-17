@@ -12,3 +12,8 @@ type UserSession struct {
 	CreatedAt    time.Time `gorm:"autoCreateTime" json:"created_at"`
 	ExpiresAt    time.Time `gorm:"not null" json:"expires_at"`
 }
+
+// TableName 指定表名
+func (UserSession) TableName() string {
+	return "user_sessions"
+}

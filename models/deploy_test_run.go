@@ -41,6 +41,11 @@ type DeployTestRun struct {
 	ErrorMessage string `json:"error_message"`
 }
 
+// TableName 指定表名
+func (DeployTestRun) TableName() string {
+	return "deploy_test_runs"
+}
+
 // DeployTestStep 记录每个步骤的详细信息
 type DeployTestStep struct {
 	Name      string     `json:"name"`
