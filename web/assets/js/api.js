@@ -1,0 +1,159 @@
+// API 调用封装
+class API {
+    static baseURL = '/api/v1';
+
+    static async request(method, endpoint, data = null) {
+        const token = localStorage.getItem('crat_token');
+        const headers = {
+            'Content-Type': 'application/json',
+        };
+
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const config = {
+            method,
+            headers,
+        };
+
+        if (data && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+            config.body = JSON.stringify(data);
+        }
+
+        try {
+            const response = await fetch(`${this.baseURL}${endpoint}`, config);
+            
+            // 处理401错误 - 令牌过期
+            if (response.status === 401) {
+                // 尝试刷新令牌
+                const refreshed = await Auth.refreshToken();
+                if (refreshed) {
+                    // 重新发送请求
+                    headers['Authorization'] = `Bearer ${localStorage.getItem('crat_token')}`;
+                    const retryResponse = await fetch(`${this.baseURL}${endpoint}`, {
+                        ...config,
+                        headers,
+                    });
+                    
+                    if (!retryResponse.ok) {
+                        throw new Error(`HTTP error! status: ${retryResponse.status}`);
+                    }
+                    
+                    return await retryResponse.json();
+                } else {
+                    throw new Error('Authentication failed');
+                }
+            }
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error(`API ${method} ${endpoint} failed:`, error);
+            throw error;
+        }
+    }
+
+    static async get(endpoint) {
+        return this.request('GET', endpoint);
+    }
+
+    static async post(endpoint, data) {
+        return this.request('POST', endpoint, data);
+    }
+
+    static async put(endpoint, data) {
+        return this.request('PUT', endpoint, data);
+    }
+
+    static async delete(endpoint) {
+        return this.request('DELETE', endpoint);
+    }
+
+    // 构建信息相关API
+    static async getBuildInfo(params = {}) {
+        const queryString = new URLSearchParams(params).toString();
+        const endpoint = queryString ? `/builds?${queryString}` : '/builds';
+        return this.get(endpoint);
+    }
+
+    static async getJobNames() {
+        return this.get('/builds/job-names');
+    }
+
+    static async getBuildsByJobName(jobName) {
+        return this.get(`/builds/job/${encodeURIComponent(jobName)}`);
+    }
+
+    static async getLatestBuildByJobName(jobName) {
+        return this.get(`/builds/job/${encodeURIComponent(jobName)}/latest`);
+    }
+
+    // 测试项相关API
+    static async getTestItems() {
+        return this.get('/test-items');
+    }
+
+    static async createTestItem(testItem) {
+        return this.post('/test-items', testItem);
+    }
+
+    static async updateTestItem(id, updates) {
+        return this.put(`/test-items/${id}`, updates);
+    }
+
+    static async deleteTestItem(id) {
+        return this.delete(`/test-items/${id}`);
+    }    static async triggerTest(testItemId, buildInfoId) {
+        return this.post(`/test-items/${testItemId}/deploy-test`, {
+            build_info_id: buildInfoId
+        });
+    }
+
+    static async triggerDeployTest(testItemId, buildInfoId) {
+        return this.post(`/test-items/${testItemId}/deploy-test`, {
+            build_info_id: buildInfoId
+        });
+    }
+
+    static async getTestRuns(testItemId, params = {}) {
+        const queryString = new URLSearchParams(params).toString();
+        const endpoint = queryString ? `/test-items/${testItemId}/deploy-runs?${queryString}` : `/test-items/${testItemId}/deploy-runs`;
+        return this.get(endpoint);
+    }
+
+    static async getDeployTestRuns(testItemId, params = {}) {
+        const queryString = new URLSearchParams(params).toString();
+        const endpoint = queryString ? `/test-items/${testItemId}/deploy-runs?${queryString}` : `/test-items/${testItemId}/deploy-runs`;
+        return this.get(endpoint);
+    }
+
+    static async getTestRun(runId) {
+        return this.get(`/deploy-test-runs/${runId}`);
+    }
+
+    static async getDeployTestRun(runId) {
+        return this.get(`/deploy-test-runs/${runId}`);
+    }
+
+    // 系统设置相关API
+    static async getSystemSettings() {
+        return this.get('/settings');
+    }
+
+    static async updateSystemSettings(settings) {
+        return this.put('/settings', settings);
+    }
+
+    static async getSystemSetting(key) {
+        return this.get(`/settings/${key}`);
+    }
+
+    static async updateSystemSetting(key, value, description = '') {
+        return this.put(`/settings/${key}`, { value, description });
+    }
+}

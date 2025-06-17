@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRAT - 自动化测试平台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/framer-motion@11.0.0/dist/framer-motion.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .glass-effect {
+            backdrop-filter: blur(16px) saturate(180%);
+            background-color: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(209, 213, 219, 0.3);
+        }
+        .bento-card {
+            background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+            box-shadow: 0 4px 16px 0 rgba(31, 38, 135, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            transition: all 0.3s ease;
+        }
+        .bento-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.25);
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .sidebar-active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .scroll-smooth {
+            scroll-behavior: smooth;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-50">
+    <!-- 顶部导航栏 -->
+    <nav class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- 左侧logo和标题 -->
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-rocket text-white text-lg"></i>
+                        </div>
+                        <h1 class="ml-3 text-2xl font-bold gradient-text">CRAT Platform</h1>
+                    </div>
+                </div>
+
+                <!-- 中间标签页 -->
+                <div class="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+                    <button id="coreTab" class="tab-button px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 bg-white text-gray-900 shadow-sm">
+                        <i class="fas fa-cogs mr-2"></i>Core
+                    </button>
+                    <button id="settingTab" class="tab-button px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 text-gray-600 hover:text-gray-900">
+                        <i class="fas fa-settings mr-2"></i>Setting
+                    </button>
+                </div>
+
+                <!-- 右侧用户信息 -->
+                <div class="flex items-center space-x-4">
+                    <div class="text-sm text-gray-600">
+                        <span id="userEmail" class="font-medium"></span>
+                        <span id="userRole" class="ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs"></span>
+                    </div>
+                    <button id="logoutButton" class="text-gray-400 hover:text-gray-600 transition-colors">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主内容区域 -->
+    <div class="flex">
+        <!-- 左侧边栏 -->
+        <aside class="w-64 bg-white shadow-sm h-screen sticky top-16 overflow-y-auto">
+            <nav class="mt-8 px-4">
+                <!-- Core 标签下的侧边栏 -->
+                <div id="coreSidebar" class="sidebar-content">
+                    <div class="space-y-2">
+                        <button id="buildInfoBtn" class="sidebar-item w-full flex items-center px-4 py-3 text-left rounded-lg transition-all duration-200 sidebar-active">
+                            <i class="fas fa-cube mr-3"></i>
+                            <span>Build Info</span>
+                        </button>
+                        <button id="triggerTestBtn" class="sidebar-item w-full flex items-center px-4 py-3 text-left rounded-lg transition-all duration-200 text-gray-600 hover:bg-gray-50">
+                            <i class="fas fa-play-circle mr-3"></i>
+                            <span>Trigger Test</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Setting 标签下的侧边栏 -->
+                <div id="settingSidebar" class="sidebar-content hidden">
+                    <div class="space-y-2">
+                        <button id="systemSettingBtn" class="sidebar-item w-full flex items-center px-4 py-3 text-left rounded-lg transition-all duration-200 text-gray-600 hover:bg-gray-50">
+                            <i class="fas fa-cog mr-3"></i>
+                            <span>System</span>
+                        </button>
+                        <button id="smtpSettingBtn" class="sidebar-item w-full flex items-center px-4 py-3 text-left rounded-lg transition-all duration-200 text-gray-600 hover:bg-gray-50">
+                            <i class="fas fa-envelope mr-3"></i>
+                            <span>SMTP</span>
+                        </button>
+                    </div>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- 右侧主内容 -->
+        <main class="flex-1 p-8 overflow-y-auto h-screen">
+            <!-- Core Tab 1: Build Info -->
+            <div id="buildInfoContent" class="content-section">
+                <div class="mb-8">
+                    <h2 class="text-3xl font-bold text-gray-900 mb-2">构建信息管理</h2>
+                    <p class="text-gray-600">管理来自 Jenkins 的构建信息</p>
+                </div>
+
+                <!-- 添加 Job 名称 -->
+                <div class="mb-6 bento-card rounded-2xl p-6">
+                    <div class="flex items-center space-x-4">
+                        <input 
+                            type="text" 
+                            id="newJobName" 
+                            placeholder="添加 Job 名称 (例如: CDN_CORE)"
+                            class="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                        <button id="addJobBtn" class="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200">
+                            <i class="fas fa-plus mr-2"></i>Add
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 构建信息列表 -->
+                <div id="buildInfoList" class="space-y-4">
+                    <!-- 动态加载内容 -->
+                </div>
+            </div>
+
+            <!-- Core Tab 2: Trigger Test -->
+            <div id="triggerTestContent" class="content-section hidden">
+                <div class="mb-8">
+                    <h2 class="text-3xl font-bold text-gray-900 mb-2">触发执行</h2>
+                    <p class="text-gray-600">管理和触发自动化测试</p>
+                </div>
+
+                <!-- 添加测试项 -->
+                <div class="mb-6 bento-card rounded-2xl p-6" id="adminOnly1" style="display: none;">
+                    <div class="flex items-center space-x-4">
+                        <input 
+                            type="text" 
+                            id="newTestName" 
+                            placeholder="添加测试项名称 (例如: cds)"
+                            class="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                        <button id="addTestBtn" class="px-6 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all duration-200">
+                            <i class="fas fa-plus mr-2"></i>Add
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 测试项列表 -->
+                <div id="testItemList" class="space-y-4">
+                    <!-- 动态加载内容 -->
+                </div>
+            </div>
+
+            <!-- Settings: System -->
+            <div id="systemSettingContent" class="content-section hidden">
+                <div class="mb-8">
+                    <h2 class="text-3xl font-bold text-gray-900 mb-2">系统设置</h2>
+                    <p class="text-gray-600">配置平台全局参数</p>
+                </div>
+
+                <div class="bento-card rounded-2xl p-8">
+                    <form id="systemSettingsForm" class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">项目名称</label>
+                            <input 
+                                type="text" 
+                                id="projectName" 
+                                name="project_name"
+                                class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="Autotest Platform"
+                            >
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Jenkins Job 构建地址 Base URL</label>
+                            <input 
+                                type="url" 
+                                id="packageBuildInfoBaseUrl" 
+                                name="package_build_info_base_url"
+                                class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="http://127.0.0.1:8080/job/"
+                            >
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">包下载地址 Base URL</label>
+                            <input 
+                                type="url" 
+                                id="packageDownloadBaseUrl" 
+                                name="package_download_base_url"
+                                class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="http://127.0.0.1/build/"
+                            >
+                        </div>
+
+                        <div class="flex justify-end">
+                            <button type="submit" class="px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200">
+                                <i class="fas fa-save mr-2"></i>保存
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Settings: SMTP (暂时隐藏，功能简化) -->
+            <div id="smtpSettingContent" class="content-section hidden">
+                <div class="mb-8">
+                    <h2 class="text-3xl font-bold text-gray-900 mb-2">SMTP 设置</h2>
+                    <p class="text-gray-600">配置邮件通知服务</p>
+                </div>
+
+                <div class="bento-card rounded-2xl p-8">
+                    <div class="text-center py-12">
+                        <i class="fas fa-envelope-open-text text-6xl text-gray-300 mb-4"></i>
+                        <h3 class="text-xl font-medium text-gray-600 mb-2">SMTP 配置</h3>
+                        <p class="text-gray-500">SMTP 设置请在服务器 .env 文件中配置</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 加载中遮罩 -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl p-8 text-center">
+            <i class="fas fa-spinner fa-spin text-4xl text-blue-500 mb-4"></i>
+            <p class="text-gray-600">加载中...</p>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="/static/js/main.js"></script>
+    <script src="/static/js/auth.js"></script>
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/components/build-info.js"></script>
+    <script src="/static/js/components/test-trigger.js"></script>
+    <script src="/static/js/components/settings.js"></script>
+</body>
+</html>

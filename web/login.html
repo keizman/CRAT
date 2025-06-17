@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRAT - 登录</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/framer-motion@11.0.0/dist/framer-motion.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .glass-effect {
+            backdrop-filter: blur(16px) saturate(180%);
+            background-color: rgba(255, 255, 255, 0.75);
+            border: 1px solid rgba(209, 213, 219, 0.3);
+        }
+        .bento-card {
+            background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+    </style>
+</head>
+<body class="min-h-screen gradient-bg flex items-center justify-center p-4">
+    <!-- 背景装饰 -->
+    <div class="absolute inset-0 overflow-hidden">
+        <div class="absolute -top-40 -right-40 w-80 h-80 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
+        <div class="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
+        <div class="absolute top-40 left-40 w-80 h-80 bg-indigo-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
+    </div>
+
+    <!-- 登录容器 -->
+    <div class="relative z-10 w-full max-w-md">
+        <!-- 主标题 -->
+        <div class="text-center mb-8">
+            <h1 class="text-6xl font-bold text-white mb-4 tracking-tight">
+                <span class="bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
+                    CRAT
+                </span>
+            </h1>
+            <p class="text-xl text-blue-100 font-light">
+                自动化测试触发平台
+            </p>
+        </div>
+
+        <!-- 登录卡片 -->
+        <div class="bento-card rounded-3xl p-8 backdrop-blur-lg">
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl mb-4">
+                    <i class="fas fa-rocket text-white text-2xl"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">欢迎回来</h2>
+                <p class="text-gray-600">请使用您的邮箱登录</p>
+            </div>
+
+            <!-- 登录表单 -->
+            <form id="loginForm" class="space-y-6">
+                <!-- 邮箱输入 -->
+                <div class="space-y-2">
+                    <label for="email" class="block text-sm font-medium text-gray-700">
+                        <i class="fas fa-envelope mr-2 text-blue-500"></i>邮箱地址
+                    </label>
+                    <input 
+                        type="text" 
+                        id="email" 
+                        name="email" 
+                        required
+                        class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white/50"
+                        placeholder="user@example.com 或 admin"
+                    >
+                </div>
+
+                <!-- 密码输入 -->
+                <div class="space-y-2">
+                    <label for="password" class="block text-sm font-medium text-gray-700">
+                        <i class="fas fa-lock mr-2 text-purple-500"></i>密码
+                        <span class="text-xs text-gray-500 ml-2">(管理员必填，普通用户可留空)</span>
+                    </label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password"
+                        class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white/50"
+                        placeholder="••••••••"
+                    >
+                </div>
+
+                <!-- 错误提示 -->
+                <div id="errorMessage" class="hidden bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl">
+                    <i class="fas fa-exclamation-circle mr-2"></i>
+                    <span id="errorText"></span>
+                </div>
+
+                <!-- 登录按钮 -->
+                <button 
+                    type="submit" 
+                    id="loginButton"
+                    class="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold py-3 px-6 rounded-xl hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all duration-200 transform hover:scale-105"
+                >
+                    <span id="loginButtonText">
+                        <i class="fas fa-sign-in-alt mr-2"></i>登录
+                    </span>
+                    <span id="loginButtonLoading" class="hidden">
+                        <i class="fas fa-spinner fa-spin mr-2"></i>登录中...
+                    </span>
+                </button>
+            </form>
+
+            <!-- 用户角色说明 -->
+            <div class="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                <div class="text-sm text-blue-800">
+                    <div class="font-medium mb-2">
+                        <i class="fas fa-info-circle mr-2"></i>用户角色说明
+                    </div>
+                    <div class="space-y-1 text-xs">
+                        <div><span class="font-medium">管理员:</span> 需要输入密码，拥有完整系统管理权限</div>
+                        <div><span class="font-medium">普通用户:</span> 仅需邮箱即可登录，可查看和触发测试</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 版权信息 -->
+        <div class="text-center mt-8 text-blue-100 text-sm">
+            <p>&copy; 2025 CRAT Platform. All rights reserved.</p>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // 动画样式
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes blob {
+                0% { transform: translate(0px, 0px) scale(1); }
+                33% { transform: translate(30px, -50px) scale(1.1); }
+                66% { transform: translate(-20px, 20px) scale(0.9); }
+                100% { transform: translate(0px, 0px) scale(1); }
+            }
+            .animate-blob {
+                animation: blob 7s infinite;
+            }
+            .animation-delay-2000 {
+                animation-delay: 2s;
+            }
+            .animation-delay-4000 {
+                animation-delay: 4s;
+            }
+        `;
+        document.head.appendChild(style);
+
+        // 检查是否已登录
+        const token = localStorage.getItem('crat_token');
+        if (token) {
+            window.location.href = '/';
+        }
+
+        // 登录表单处理
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('errorMessage');
+            const errorText = document.getElementById('errorText');
+            const loginButton = document.getElementById('loginButton');
+            const loginButtonText = document.getElementById('loginButtonText');
+            const loginButtonLoading = document.getElementById('loginButtonLoading');
+
+            // 隐藏错误信息
+            errorDiv.classList.add('hidden');
+
+            // 显示加载状态
+            loginButton.disabled = true;
+            loginButtonText.classList.add('hidden');
+            loginButtonLoading.classList.remove('hidden');
+
+            try {
+                const response = await fetch('/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password }),
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // 保存token和用户信息
+                    localStorage.setItem('crat_token', data.token);
+                    localStorage.setItem('crat_user_email', data.email);
+                    localStorage.setItem('crat_is_admin', data.is_admin);
+                    
+                    // 跳转到主页
+                    window.location.href = '/';
+                } else {
+                    // 显示错误信息
+                    errorText.textContent = data.error || '登录失败，请重试';
+                    errorDiv.classList.remove('hidden');
+                }
+            } catch (error) {
+                errorText.textContent = '网络错误，请检查连接后重试';
+                errorDiv.classList.remove('hidden');
+            } finally {
+                // 恢复按钮状态
+                loginButton.disabled = false;
+                loginButtonText.classList.remove('hidden');
+                loginButtonLoading.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
