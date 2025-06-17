@@ -384,7 +384,7 @@ CREATE TABLE user_sessions (
    - 便于追踪用户行为和安全审计
 
 4. **灵活的权限管理**
-   - 支持管理员和普通用户角色区分
+   - 划分管理员和普通用户角色
    - 便于扩展更复杂的权限系统
 
 ### 设计权衡 ⚠️
@@ -523,18 +523,12 @@ CREATE TABLE user_sessions (
 # 启动开发模式（自动重载）
 go run main.go
 
-# 或者使用 air (需要先安装)
-air
+
 ```
 
 ### 前端开发
 前端使用原生 JavaScript + TailwindCSS，无需复杂的构建过程。
 直接修改 `web/` 目录下的文件即可。
-
-### 数据库迁移
-如需修改数据库结构，请:
-1. 在 `database/migrations/` 目录下创建新的迁移文件
-2. 按照版本号命名：`001_initial.sql`, `002_add_new_table.sql` 等
 
 ## 故障排除
 
@@ -559,15 +553,6 @@ air
    - 检查 SMTP 配置
    - 确认邮箱服务器允许应用登录
    - 可能需要使用应用专用密码
-
-### 日志查看
-```bash
-# 查看应用日志
-tail -f logs/app.log
-
-# 查看实时日志（如果使用 systemd）
-journalctl -f -u crat
-```
 
 ## 架构更新说明
 

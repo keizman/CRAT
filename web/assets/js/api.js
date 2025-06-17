@@ -140,6 +140,10 @@ export class API {
         return this.get(`/deploy-test-runs/${runId}`);
     }
 
+    static async clearDeployTestHistory(testItemId) {
+        return this.delete(`/test-items/${testItemId}/deploy-history`);
+    }
+
     // 系统设置相关API
     static async getSystemSettings() {
         return this.get('/settings');

@@ -80,9 +80,9 @@ func LoadConfig() {
 			Server:   viper.GetString("EMAIL_SEND_SERVER"),
 			Port:     viper.GetInt("EMAIL_SEND_SERVER_PORT"),
 		},
-		External: ExternalConfig{
-			TestServerURL: viper.GetString("EXTERNAL_TEST_SERVER_URL"),
-		},
+		// External: ExternalConfig{
+		// 	TestServerURL: viper.GetString("EXTERNAL_TEST_SERVER_URL"),
+		// },
 	}
 
 	log.Println("Configuration loaded successfully")

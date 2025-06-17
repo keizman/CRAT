@@ -79,7 +79,7 @@ func (s *DeployTestService) executeDeployTest(deployTestRun *models.DeployTestRu
 	}()
 
 	// 步骤1: 下载文件
-	if err := s.downloadPackage(deployTestRun, buildInfo); err != nil {
+	if err := s.downloadPackage(deployTestRun, testItem, buildInfo); err != nil {
 		s.updateDeployTestStatus(deployTestRun.ID, models.DeployTestStatusFailed, fmt.Sprintf("Download failed: %v", err))
 		return
 	}
@@ -103,7 +103,7 @@ func (s *DeployTestService) executeDeployTest(deployTestRun *models.DeployTestRu
 }
 
 // downloadPackage 下载包文件到本地
-func (s *DeployTestService) downloadPackage(deployTestRun *models.DeployTestRun, buildInfo *models.BuildInfo) error {
+func (s *DeployTestService) downloadPackage(deployTestRun *models.DeployTestRun, testItem *models.TestItem, buildInfo *models.BuildInfo) error {
 	s.updateDeployTestStatus(deployTestRun.ID, models.DeployTestStatusDownloading, "")
 	s.addStep(deployTestRun.ID, models.StepDownload, "RUNNING", "Starting package download", "")
 	// 获取系统设置
@@ -124,7 +124,7 @@ func (s *DeployTestService) downloadPackage(deployTestRun *models.DeployTestRun,
 	packageDirURL := downloadBaseURL + buildInfo.PackagePath
 
 	// 获取目录下的文件列表，找到对应的包文件
-	packageFileName, err := s.findPackageFile(packageDirURL, deployTestRun.TestItem.Name)
+	packageFileName, err := s.findPackageFile(packageDirURL, testItem.Name)
 	if err != nil {
 		s.addStep(deployTestRun.ID, models.StepDownload, "FAILED", "", fmt.Sprintf("Failed to find package file: %v", err))
 		return err
@@ -577,4 +577,37 @@ func (s *DeployTestService) GetDeployTestRunByID(id uint) (*models.DeployTestRun
 		return nil, err
 	}
 	return &run, nil
+}
+
+// ClearDeployTestHistory 清理指定测试项的部署测试历史
+func (s *DeployTestService) ClearDeployTestHistory(testItemID uint) (int64, error) {
+	log.Printf("Clearing deploy test history for test item ID: %d", testItemID)
+
+	// 检查测试项是否存在
+	var testItem models.TestItem
+	if err := config.DB.First(&testItem, testItemID).Error; err != nil {
+		return 0, fmt.Errorf("test item not found: %v", err)
+	}
+
+	// 统计将要删除的记录数
+	var count int64
+	if err := config.DB.Model(&models.DeployTestRun{}).Where("test_item_id = ?", testItemID).Count(&count).Error; err != nil {
+		return 0, fmt.Errorf("failed to count deploy test runs: %v", err)
+	}
+
+	if count == 0 {
+		log.Printf("No deploy test runs found for test item ID: %d", testItemID)
+		return 0, nil
+	}
+
+	// 删除所有相关的部署测试运行记录
+	result := config.DB.Where("test_item_id = ?", testItemID).Delete(&models.DeployTestRun{})
+	if result.Error != nil {
+		return 0, fmt.Errorf("failed to clear deploy test history: %v", result.Error)
+	}
+
+	deletedCount := result.RowsAffected
+	log.Printf("Successfully cleared %d deploy test runs for test item '%s' (ID: %d)", deletedCount, testItem.Name, testItemID)
+	
+	return deletedCount, nil
 }

@@ -116,6 +116,7 @@ func setupRouter() *gin.Engine {
 			admin.POST("/test-items", testItemController.CreateTestItem)
 			admin.PUT("/test-items/:id", testItemController.UpdateTestItem)
 			admin.DELETE("/test-items/:id", testItemController.DeleteTestItem)
+			admin.DELETE("/test-items/:id/deploy-history", testItemController.ClearDeployTestHistory)
 
 			// 系统设置修改（仅管理员可访问）
 			admin.PUT("/settings", systemSettingController.UpdateSettings)

@@ -8,7 +8,7 @@ class TestTrigger {
     static async loadTestItems() {
         try {
             const response = await API.getTestItems();
-            this.testItems = response.data || [];
+            this.testItems = (response.data || []).sort((a, b) => a.name.localeCompare(b.name));
             this.renderTestItems();
         } catch (error) {
             console.error('Failed to load test items:', error);
@@ -41,6 +41,10 @@ class TestTrigger {
             return;
         }
 
+    //     <button class="history-tab px-4 py-2 text-sm font-medium text-blue-600 border-b-2 border-blue-600" data-item-id="${item.id}" data-tab="test">
+    //     普通测试
+    // </button>
+
         const html = this.testItems.map(item => {
             const isExpanded = this.expandedItems.has(item.id);
             
@@ -57,9 +61,17 @@ class TestTrigger {
                             
                             <div class="flex items-center space-x-2">
                                 <span class="text-sm text-gray-500">Version:</span>
-                                <select class="version-select px-3 py-1 border border-gray-200 rounded-lg text-sm" data-item-id="${item.id}">
-                                    <option value="">选择版本...</option>
-                                </select>
+                                <div class="relative">
+                                    <input type="text" 
+                                           class="version-search px-3 py-1 border border-gray-200 rounded-lg text-sm w-64" 
+                                           data-item-id="${item.id}"
+                                           placeholder="搜索或选择版本..."
+                                           autocomplete="off">
+                                    <div class="version-dropdown absolute top-full left-0 min-w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden z-50 whitespace-nowrap" 
+                                         data-item-id="${item.id}">
+                                    </div>
+                                    <input type="hidden" class="version-value" data-item-id="${item.id}" value="">
+                                </div>
                             </div>
                               <button class="trigger-btn px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all duration-200 text-sm" data-item-id="${item.id}">
                                 <i class="fas fa-play mr-1"></i>触发测试
@@ -94,9 +106,7 @@ class TestTrigger {
                         
                         <!-- Tab Navigation -->
                         <div class="flex border-b border-gray-200 mb-4">
-                            <button class="history-tab px-4 py-2 text-sm font-medium text-blue-600 border-b-2 border-blue-600" data-item-id="${item.id}" data-tab="test">
-                                普通测试
-                            </button>
+
                             <button class="history-tab px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700" data-item-id="${item.id}" data-tab="deploy">
                                 部署测试
                             </button>
@@ -177,6 +187,26 @@ class TestTrigger {
                 this.switchHistoryTab(itemId, tab);
             });
         });
+
+        // 版本搜索功能
+        container.querySelectorAll('.version-search').forEach(input => {
+            const itemId = parseInt(input.dataset.itemId);
+            
+            input.addEventListener('focus', (e) => {
+                this.showVersionDropdown(itemId);
+            });
+            
+            input.addEventListener('input', (e) => {
+                this.filterVersions(itemId, e.target.value);
+            });
+            
+            input.addEventListener('blur', (e) => {
+                // 延迟隐藏下拉框，以便点击选项
+                setTimeout(() => {
+                    this.hideVersionDropdown(itemId);
+                }, 200);
+            });
+        });
     }
 
     static async loadVersionsForAllItems() {
@@ -186,21 +216,37 @@ class TestTrigger {
     }
 
     static async loadVersionsForItem(itemId, jobName) {
-        const select = document.querySelector(`.version-select[data-item-id="${itemId}"]`);
-        if (!select || !jobName) return;
+        const dropdown = document.querySelector(`.version-dropdown[data-item-id="${itemId}"]`);
+        const input = document.querySelector(`.version-search[data-item-id="${itemId}"]`);
+        const hiddenInput = document.querySelector(`.version-value[data-item-id="${itemId}"]`);
+        
+        if (!dropdown || !input || !jobName) return;
 
         try {
             const response = await API.getBuildsByJobName(jobName);
             const builds = response.data || [];
             
-            select.innerHTML = '<option value="">选择版本...</option>' + 
-                builds.map(build => 
-                    `<option value="${build.id}">${build.job_name}_${build.build_number}</option>`
-                ).join('');
+            // 存储构建数据以供搜索使用
+            this.buildData = this.buildData || {};
+            this.buildData[itemId] = builds;
+            
+            this.renderVersionDropdown(itemId, builds);
                 
             // 默认选择最新版本
             if (builds.length > 0) {
-                select.value = builds[0].id;
+                const latestBuild = builds[0];
+                // Format time as 20250615-12:43
+                const buildTime = new Date(latestBuild.created_at);
+                const year = buildTime.getFullYear();
+                const month = String(buildTime.getMonth() + 1).padStart(2, '0');
+                const day = String(buildTime.getDate()).padStart(2, '0');
+                const hours = String(buildTime.getHours()).padStart(2, '0');
+                const minutes = String(buildTime.getMinutes()).padStart(2, '0');
+                const formattedTime = `${year}${month}${day}-${hours}:${minutes}`;
+                
+                const displayText = `${latestBuild.job_name} #${latestBuild.build_number} - ${latestBuild.build_user} ${formattedTime}`;
+                input.value = displayText;
+                hiddenInput.value = latestBuild.id;
             }
         } catch (error) {
             console.error(`Failed to load versions for item ${itemId}:`, error);
@@ -218,8 +264,8 @@ class TestTrigger {
             historyDiv.classList.remove('hidden');
             toggleIcon.classList.add('rotate-90');
             
-            // 默认加载普通测试历史
-            this.loadTestHistory(itemId);
+            // 默认加载部署测试历史
+            this.loadDeployTestHistory(itemId);
         }
     }    static async loadTestHistory(itemId) {
         const historyContent = document.querySelector(`.history-content[data-item-id="${itemId}"]`);
@@ -256,6 +302,9 @@ class TestTrigger {
                                 <a href="${run.report_url}" target="_blank" class="text-blue-600 hover:text-blue-800 text-sm">
                                     <i class="fas fa-external-link-alt mr-1"></i>Report
                                 </a>
+                                <button class="preview-btn text-purple-600 hover:text-purple-800 text-sm ml-2" data-report-url="${run.report_url}">
+                                    <i class="fas fa-eye mr-1"></i>Preview
+                                </button>
                             ` : ''}
                             <button class="text-blue-600 hover:text-blue-800 text-sm" onclick="TestTrigger.showDeployTestDetails(${run.id})">
                                 <i class="fas fa-info-circle mr-1"></i>详情
@@ -266,6 +315,15 @@ class TestTrigger {
             }).join('');
 
             historyContent.innerHTML = html;
+
+            // 添加Preview按钮事件监听
+            historyContent.querySelectorAll('.preview-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const reportUrl = e.currentTarget.dataset.reportUrl;
+                    this.showReportPreview(reportUrl);
+                });
+            });
+
         } catch (error) {
             console.error(`Failed to load test history for item ${itemId}:`, error);
             historyContent.innerHTML = `
@@ -275,9 +333,99 @@ class TestTrigger {
                 </div>
             `;
         }
-    }static async triggerTest(itemId) {
-        const select = document.querySelector(`.version-select[data-item-id="${itemId}"]`);
-        const buildInfoId = select.value;
+    }
+
+    static renderVersionDropdown(itemId, builds) {
+        const dropdown = document.querySelector(`.version-dropdown[data-item-id="${itemId}"]`);
+        if (!dropdown) return;
+        
+        const html = builds.map((build, index) => {
+            // Format time as 20250615-12:43
+            const buildTime = new Date(build.created_at);
+            const year = buildTime.getFullYear();
+            const month = String(buildTime.getMonth() + 1).padStart(2, '0');
+            const day = String(buildTime.getDate()).padStart(2, '0');
+            const hours = String(buildTime.getHours()).padStart(2, '0');
+            const minutes = String(buildTime.getMinutes()).padStart(2, '0');
+            const formattedTime = `${year}${month}${day}-${hours}:${minutes}`;
+            
+            const displayText = `${build.job_name} #${build.build_number} - ${build.build_user} ${formattedTime}`;
+            const isEven = index % 2 === 0;
+            
+            // Generate build path in same format as build info page
+            const baseUrl = 'http://192.168.1.199:8080/job/'; // This should match build info page base URL
+            const buildPath = `${baseUrl}${build.job_name}/${build.build_number}`;
+            
+            // Create full display text with build path
+            const fullDisplayText = `${build.job_name} #${build.build_number} - ${build.build_user} ${formattedTime} - 构建路径: ${buildPath}`;
+            
+            return `
+                <div class="version-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 ${isEven ? 'bg-gray-50' : 'bg-white'}" 
+                     data-value="${build.id}" 
+                     data-display="${displayText}"
+                     data-item-id="${itemId}">
+                    <div class="font-medium text-sm whitespace-nowrap">
+                        ${fullDisplayText}
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        dropdown.innerHTML = html;
+        
+        // 添加点击事件
+        dropdown.querySelectorAll('.version-option').forEach(option => {
+            option.addEventListener('click', (e) => {
+                this.selectVersion(itemId, e.currentTarget.dataset.value, e.currentTarget.dataset.display);
+            });
+        });
+    }
+
+    static showVersionDropdown(itemId) {
+        const dropdown = document.querySelector(`.version-dropdown[data-item-id="${itemId}"]`);
+        if (dropdown) {
+            dropdown.classList.remove('hidden');
+        }
+    }
+
+    static hideVersionDropdown(itemId) {
+        const dropdown = document.querySelector(`.version-dropdown[data-item-id="${itemId}"]`);
+        if (dropdown) {
+            dropdown.classList.add('hidden');
+        }
+    }
+
+    static filterVersions(itemId, searchText) {
+        const dropdown = document.querySelector(`.version-dropdown[data-item-id="${itemId}"]`);
+        if (!dropdown || !this.buildData || !this.buildData[itemId]) return;
+        
+        const builds = this.buildData[itemId];
+        const filteredBuilds = builds.filter(build => {
+            const searchLower = searchText.toLowerCase();
+            return build.job_name.toLowerCase().includes(searchLower) ||
+                   build.build_number.toString().includes(searchLower) ||
+                   build.build_user.toLowerCase().includes(searchLower) ||
+                   (build.package_path && build.package_path.toLowerCase().includes(searchLower));
+        });
+        
+        this.renderVersionDropdown(itemId, filteredBuilds);
+        this.showVersionDropdown(itemId);
+    }
+
+    static selectVersion(itemId, buildId, displayText) {
+        const input = document.querySelector(`.version-search[data-item-id="${itemId}"]`);
+        const hiddenInput = document.querySelector(`.version-value[data-item-id="${itemId}"]`);
+        
+        if (input && hiddenInput) {
+            input.value = displayText;
+            hiddenInput.value = buildId;
+            this.hideVersionDropdown(itemId);
+        }
+    }
+
+    static async triggerTest(itemId) {
+        const hiddenInput = document.querySelector(`.version-value[data-item-id="${itemId}"]`);
+        const buildInfoId = hiddenInput.value;
         
         if (!buildInfoId) {
             alert('请先选择一个版本');
@@ -343,12 +491,87 @@ class TestTrigger {
         }
     }
 
-    static showAssociateBuildDialog(itemId) {
+    static async showAssociateBuildDialog(itemId) {
         const item = this.testItems.find(t => t.id === itemId);
-        const jobName = prompt('请输入要关联的 Job 名称:', item.associated_job_name || '');
         
-        if (jobName !== null) {
-            this.updateTestItem(itemId, { associated_job_name: jobName });
+        try {
+            // 获取所有可用的 job names
+            const response = await API.getJobNames();
+            const jobNames = response.data || [];
+            
+            if (jobNames.length === 0) {
+                alert('暂无可用的构建作业，请先确保有构建信息数据');
+                return;
+            }
+            
+            // 创建选择对话框
+            const modalHtml = `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" id="associate-build-modal">
+                    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-bold">关联构建作业</h3>
+                            <button class="close-modal text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">选择构建作业</label>
+                            <select class="job-select w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">请选择作业...</option>
+                                ${jobNames.map(jobName => 
+                                    `<option value="${jobName}" ${jobName === item.associated_job_name ? 'selected' : ''}>${jobName}</option>`
+                                ).join('')}
+                            </select>
+                        </div>
+                        
+                        <div class="flex justify-end space-x-3">
+                            <button class="cancel-btn px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
+                                取消
+                            </button>
+                            <button class="confirm-btn px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                                确认关联
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            
+            const modal = document.getElementById('associate-build-modal');
+            const jobSelect = modal.querySelector('.job-select');
+            const confirmBtn = modal.querySelector('.confirm-btn');
+            const cancelBtn = modal.querySelector('.cancel-btn');
+            const closeBtn = modal.querySelector('.close-modal');
+            
+            // 关闭模态框
+            const closeModal = () => {
+                modal.remove();
+            };
+            
+            closeBtn.addEventListener('click', closeModal);
+            cancelBtn.addEventListener('click', closeModal);
+            
+            // 确认关联
+            confirmBtn.addEventListener('click', async () => {
+                const selectedJobName = jobSelect.value;
+                if (!selectedJobName) {
+                    alert('请选择一个构建作业');
+                    return;
+                }
+                
+                try {
+                    await this.updateTestItem(itemId, { associated_job_name: selectedJobName });
+                    closeModal();
+                } catch (error) {
+                    alert('关联失败: ' + error.message);
+                }
+            });
+            
+        } catch (error) {
+            console.error('Failed to load job names:', error);
+            alert('加载构建作业列表失败: ' + error.message);
         }
     }
 
@@ -384,13 +607,44 @@ class TestTrigger {
         }
     }
 
-    static clearTestHistory(itemId) {
-        if (!confirm('确定要清理此测试项的执行历史吗？')) {
+    static async clearTestHistory(itemId) {
+        const item = this.testItems.find(t => t.id === itemId);
+        const itemName = item ? item.name : `ID: ${itemId}`;
+        
+        const confirmMessage = `确定要清理测试项 "${itemName}" 的执行历史吗？\n\n此操作将会：\n- 删除所有部署测试运行记录\n- 删除所有执行步骤详情\n- 此操作不可恢复\n\n请确认是否继续？`;
+        
+        if (!confirm(confirmMessage)) {
             return;
         }
-        
-        // 这里可以实现清理历史的功能
-        alert('清理历史功能暂未实现');
+
+        try {
+            const response = await API.clearDeployTestHistory(itemId);
+            
+            // 显示成功消息
+            const deletedCount = response.deleted_count || 0;
+            const successMessage = `成功清理了 ${deletedCount} 条执行历史记录`;
+            
+            if (window.app) {
+                window.app.showSuccess(successMessage);
+            } else {
+                alert(`成功: ${successMessage}`);
+            }
+            
+            // 如果历史记录是展开的，重新加载它以显示空状态
+            if (this.expandedItems.has(itemId)) {
+                this.loadDeployTestHistory(itemId);
+            }
+        } catch (error) {
+            console.error('Failed to clear test history:', error);
+            const errorMessage = error.message || '未知错误';
+            
+            const failureMessage = `清理执行历史失败：${errorMessage}`;
+            if (window.app) {
+                window.app.showError(failureMessage);
+            } else {
+                alert(`错误: ${failureMessage}`);
+            }
+        }
     }
 
     static switchHistoryTab(itemId, tab) {
@@ -462,6 +716,9 @@ class TestTrigger {
                                 <a href="${run.report_url}" target="_blank" class="text-green-600 hover:text-green-800">
                                     <i class="fas fa-external-link-alt mr-1"></i>Report
                                 </a>
+                                <button class="preview-btn text-purple-600 hover:text-purple-800 ml-2" data-report-url="${run.report_url}">
+                                    <i class="fas fa-eye mr-1"></i>Preview
+                                </button>
                             ` : ''}
                         </div>
                     </div>
@@ -475,6 +732,14 @@ class TestTrigger {
                 btn.addEventListener('click', (e) => {
                     const runId = parseInt(e.currentTarget.dataset.runId);
                     this.showDeployTestDetails(runId);
+                });
+            });
+
+            // 添加Preview按钮事件监听
+            historyContent.querySelectorAll('.preview-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const reportUrl = e.currentTarget.dataset.reportUrl;
+                    this.showReportPreview(reportUrl);
                 });
             });
 
@@ -615,6 +880,109 @@ class TestTrigger {
 
         } catch (error) {
             alert('加载详情失败: ' + error.message);
+        }
+    }
+
+    static async showReportPreview(reportUrl) {
+        try {
+            // 显示加载中的模态框
+            const loadingModalHtml = `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" id="report-preview-modal">
+                    <div class="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-bold">测试报告预览</h3>
+                            <button class="close-modal text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="text-center py-8">
+                            <i class="fas fa-spinner fa-spin text-3xl text-blue-500 mb-4"></i>
+                            <p class="text-gray-600">正在加载报告内容...</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', loadingModalHtml);
+
+            // 获取报告内容
+            const response = await fetch(reportUrl);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const htmlContent = await response.text();
+            
+            // 创建一个临时DOM来解析HTML
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlContent, 'text/html');
+            
+            // 查找data-id="summary"的元素
+            const summaryElement = doc.querySelector('[data-id="summary"]');
+            
+            let summaryContent = '';
+            if (summaryElement) {
+                summaryContent = summaryElement.outerHTML;
+            } else {
+                summaryContent = '<div class="text-yellow-600 bg-yellow-50 p-4 rounded-lg"><i class="fas fa-exclamation-triangle mr-2"></i>未找到summary部分，可能报告格式已更新</div>';
+            }
+
+            // 更新模态框内容
+            const modal = document.getElementById('report-preview-modal');
+            const modalContent = modal.querySelector('.bg-white');
+            modalContent.innerHTML = `
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-bold">测试报告预览</h3>
+                    <div class="flex items-center space-x-3">
+                        <a href="${reportUrl}" target="_blank" class="text-blue-600 hover:text-blue-800 text-sm">
+                            <i class="fas fa-external-link-alt mr-1"></i>查看完整报告
+                        </a>
+                        <button class="close-modal text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="border-t pt-4">
+                    <div class="report-summary-content">
+                        ${summaryContent}
+                    </div>
+                </div>
+            `;
+
+            // 重新绑定关闭事件
+            modal.querySelector('.close-modal').addEventListener('click', () => {
+                modal.remove();
+            });
+
+        } catch (error) {
+            // 更新为错误状态
+            const modal = document.getElementById('report-preview-modal');
+            if (modal) {
+                const modalContent = modal.querySelector('.bg-white');
+                modalContent.innerHTML = `
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-bold">测试报告预览</h3>
+                        <button class="close-modal text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="text-center py-8">
+                        <i class="fas fa-exclamation-triangle text-3xl text-red-500 mb-4"></i>
+                        <p class="text-red-600 mb-4">加载报告失败</p>
+                        <p class="text-gray-600 text-sm mb-4">${error.message}</p>
+                        <a href="${reportUrl}" target="_blank" class="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                            <i class="fas fa-external-link-alt mr-2"></i>直接访问报告
+                        </a>
+                    </div>
+                `;
+
+                // 重新绑定关闭事件
+                modal.querySelector('.close-modal').addEventListener('click', () => {
+                    modal.remove();
+                });
+            } else {
+                alert('加载报告预览失败: ' + error.message);
+            }
         }
     }
 

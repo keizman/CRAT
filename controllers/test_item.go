@@ -200,3 +200,29 @@ func (t *TestItemController) GetDeployTestRun(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"data": deployTestRun})
 }
+
+// ClearDeployTestHistory 清理部署测试历史
+func (t *TestItemController) ClearDeployTestHistory(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid test item ID"})
+		return
+	}
+
+	// 获取当前用户邮箱用于日志记录
+	userEmail, _ := c.Get("user_email")
+	
+	deletedCount, err := t.deployTestService.ClearDeployTestHistory(uint(id))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Deploy test history cleared successfully",
+		"deleted_count": deletedCount,
+		"test_item_id": id,
+		"cleared_by": userEmail,
+	})
+}

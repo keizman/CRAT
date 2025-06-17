@@ -115,7 +115,7 @@ class BuildInfo {
                                             <i class="fas fa-external-link-alt mr-1"></i>查看构建
                                         </a>
                                     </div>
-                                    <div class="mt-1 text-sm text-gray-700 break-all">${this.truncateText(buildPath, 60)}</div>
+                                    <div class="mt-1 text-sm text-gray-700 break-all">${buildPath}</div>
                                 </div>
                                 
                                 <div class="bg-white rounded-md p-3 border border-gray-200">
@@ -125,7 +125,7 @@ class BuildInfo {
                                             <i class="fas fa-download mr-1"></i>下载包
                                         </a>
                                     </div>
-                                    <div class="mt-1 text-sm text-gray-700 break-all">${this.truncateText(downloadPath, 60)}</div>
+                                    <div class="mt-1 text-sm text-gray-700 break-all">${downloadPath}</div>
                                 </div>
                             </div>
                             
@@ -133,8 +133,10 @@ class BuildInfo {
                             ${window.app && window.app.isAdmin ? `
                                 <div class="flex justify-end mt-3 pt-3 border-t border-gray-200">
                                     <button 
-                                        onclick="BuildInfo.deleteBuildInfo(${build.id}, '${build.job_name}', ${build.build_number})" 
-                                        class="inline-flex items-center px-3 py-1 text-xs font-medium text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
+                                        class="delete-build-btn inline-flex items-center px-3 py-1 text-xs font-medium text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
+                                        data-build-id="${build.id}"
+                                        data-job-name="${build.job_name}"
+                                        data-build-number="${build.build_number}"
                                         title="删除构建信息 ${build.job_name} #${build.build_number}"
                                     >
                                         <i class="fas fa-trash mr-1"></i>删除
@@ -185,6 +187,17 @@ class BuildInfo {
             btn.addEventListener('click', (e) => {
                 const jobName = e.currentTarget.dataset.job;
                 this.toggleJobBuilds(jobName);
+            });
+        });
+
+        // 添加删除按钮事件监听器
+        container.querySelectorAll('.delete-build-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const buildId = parseInt(e.currentTarget.dataset.buildId);
+                const jobName = e.currentTarget.dataset.jobName;
+                const buildNumber = parseInt(e.currentTarget.dataset.buildNumber);
+                this.deleteBuildInfo(buildId, jobName, buildNumber);
             });
         });
     }
