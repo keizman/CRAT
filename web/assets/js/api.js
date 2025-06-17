@@ -1,5 +1,5 @@
 // API 调用封装
-class API {
+export class API {
     static baseURL = '/api/v1';
 
     static async request(method, endpoint, data = null) {
@@ -26,24 +26,12 @@ class API {
             
             // 处理401错误 - 令牌过期
             if (response.status === 401) {
-                // 尝试刷新令牌
-                const refreshed = await Auth.refreshToken();
-                if (refreshed) {
-                    // 重新发送请求
-                    headers['Authorization'] = `Bearer ${localStorage.getItem('crat_token')}`;
-                    const retryResponse = await fetch(`${this.baseURL}${endpoint}`, {
-                        ...config,
-                        headers,
-                    });
-                    
-                    if (!retryResponse.ok) {
-                        throw new Error(`HTTP error! status: ${retryResponse.status}`);
-                    }
-                    
-                    return await retryResponse.json();
-                } else {
-                    throw new Error('Authentication failed');
-                }
+                // 简化处理：直接跳转到登录页面而不尝试刷新
+                localStorage.removeItem('crat_token');
+                localStorage.removeItem('crat_user_email');
+                localStorage.removeItem('crat_is_admin');
+                window.location.href = '/login';
+                throw new Error('Authentication failed');
             }
 
             if (!response.ok) {

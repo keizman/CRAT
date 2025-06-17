@@ -1,3 +1,5 @@
+import { API } from '../api.js';
+
 // 构建信息组件
 class BuildInfo {
     static jobNames = [];
@@ -175,3 +177,5 @@ class BuildInfo {
         return text.substring(0, maxLength) + '...';
     }
 }
+
+export { BuildInfo };

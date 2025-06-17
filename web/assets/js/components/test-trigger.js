@@ -1,3 +1,5 @@
+import { API } from '../api.js';
+
 // 测试触发组件
 class TestTrigger {
     static testItems = [];
@@ -656,3 +658,5 @@ class TestTrigger {
         `;
     }
 }
+
+export { TestTrigger };

@@ -1,5 +1,8 @@
+// 导入API模块
+import { API } from './api.js';
+
 // 认证相关功能
-class Auth {
+export class Auth {
     static checkAuth() {
         const token = localStorage.getItem('crat_token');
         return !!token;

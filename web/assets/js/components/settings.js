@@ -1,3 +1,5 @@
+import { API } from '../api.js';
+
 // 系统设置组件
 class Settings {
     static currentSettings = {};
@@ -193,3 +195,5 @@ class Settings {
         return errors;
     }
 }
+
+export { Settings };

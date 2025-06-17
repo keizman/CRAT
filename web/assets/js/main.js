@@ -1,3 +1,9 @@
+// 导入依赖模块
+import { Auth } from './auth.js';
+import { BuildInfo } from './components/build-info.js';
+import { TestTrigger } from './components/test-trigger.js';
+import { Settings } from './components/settings.js';
+
 // 主应用逻辑
 class CRATApp {
     constructor() {

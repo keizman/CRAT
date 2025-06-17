@@ -43,9 +43,24 @@ func setupRouter() *gin.Engine {
 	router.Use(middleware.CORSMiddleware())
 
 	// 静态文件服务
-	router.Static("/static", "./web/assets")
-	router.StaticFile("/", "./web/index.html")
-	router.StaticFile("/login", "./web/login.html")
+	router.Static("/assets", "./web/dist/assets")
+	router.StaticFile("/", "./web/dist/index.html")
+	router.StaticFile("/login", "./web/dist/login.html")
+	
+	// 缓存控制中间件
+	router.Use(func(c *gin.Context) {
+		path := c.Request.URL.Path
+		if path == "/" || path == "/login" {
+			// HTML文件不缓存，确保获取最新版本
+			c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
+			c.Header("Pragma", "no-cache")
+			c.Header("Expires", "0")
+		} else if path[:8] == "/assets/" {
+			// 静态资源长期缓存（带hash的文件名）
+			c.Header("Cache-Control", "public, max-age=31536000, immutable")
+		}
+		c.Next()
+	})
 
 	// 初始化控制器
 	authController := controllers.NewAuthController()

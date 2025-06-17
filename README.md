@@ -1,6 +1,15 @@
 # CRAT - CDN 自动化测试触发平台
 
-一个接收 CI 系统（如 Jenkins）构建信息的 Web 平台，允许用户管理构建版本、配置并触发对指定版本的自动化测试，同时监控测试结果并发送通知。
+一个接收 CI 系统（如 Jenkins）构建信息的 Web 平台，允许用户管理构建版本、配置并触发自动化部署测试，同时监控测试结果并发送通知。
+
+## 核心功能
+
+- **构建信息管理**: 接收并存储来自Jenkins的构建信息
+- **部署测试**: 完整的自动化部署测试流程，包括下载、部署、测试和监控
+- **用户认证**: 基于JWT的用户认证系统
+- **系统管理**: 灵活的系统设置管理
+- **实时监控**: 部署测试步骤级别的状态追踪
+- **通知系统**: 邮件通知测试结果
 
 ## 项目结构
 
@@ -19,9 +28,7 @@ crat/
 ├── models/                              # 数据模型
 │   ├── build_info.go                    # 构建信息模型
 │   ├── test_item.go                     # 测试项模型
-│   ├── test_run.go                      # 测试执行历史模型
 │   ├── deploy_test_run.go               # 部署测试运行模型
-│   ├── request_template.go              # 请求模板模型
 │   ├── system_setting.go               # 系统设置模型
 │   └── user_session.go                  # 用户会话模型
 │
@@ -29,15 +36,14 @@ crat/
 │   ├── auth.go                          # 认证相关
 │   ├── build_info.go                    # 构建信息接口
 │   ├── test_item.go                     # 测试项接口
-│   ├── system_setting.go               # 系统设置接口
-│   └── webhook.go                       # Jenkins Webhook接口
+│   └── system_setting.go               # 系统设置接口
 │
 ├── services/                            # 业务逻辑服务
 │   ├── build_service.go                 # 构建信息服务
-│   ├── test_service.go                  # 测试执行服务
-│   ├── deploy_test_service.go           # 部署测试服务
+│   ├── deploy_test_service.go           # 部署测试服务 (核心服务)
 │   ├── notification_service.go          # 通知服务
-│   └── http_client.go                   # HTTP客户端服务
+│   ├── http_client.go                   # HTTP客户端服务
+│   └── system_utils.go                  # 系统工具服务
 │
 ├── middleware/                          # 中间件
 │   ├── auth.go                          # 认证中间件
@@ -46,32 +52,22 @@ crat/
 │
 ├── database/                            # 数据库相关
 │   ├── schema.sql                       # 数据库表结构
-│   ├── migrations/                      # 数据库迁移文件
-│   └── seed.sql                         # 初始数据
+│   └── migration_remove_old_tables.sql # 数据库迁移脚本
 │
 ├── web/                                 # 前端 Web 资源
 │   ├── index.html                       # 主页面
 │   ├── login.html                       # 登录页面
-│   ├── assets/                          # 静态资源
-│   │   ├── css/
-│   │   │   ├── main.css                 # 主样式文件
-│   │   │   └── components.css           # 组件样式
-│   │   ├── js/
-│   │   │   ├── main.js                  # 主逻辑
-│   │   │   ├── auth.js                  # 认证相关
-│   │   │   ├── api.js                   # API 调用
-│   │   │   ├── components/              # UI 组件
-│   │   │   │   ├── build-info.js        # 构建信息组件
-│   │   │   │   ├── test-trigger.js      # 测试触发组件
-│   │   │   │   └── settings.js          # 设置组件
-│   │   │   └── utils/
-│   │   │       ├── utils.js             # 工具函数
-│   │   │       └── animation.js         # 动画效果
-│   │   └── images/                      # 图片资源
-│   └── components/                      # 可复用的前端组件模板
-│
-├── logs/                                # 日志文件目录
-│   └── app.log
+│   └── assets/                          # 静态资源
+│       ├── css/
+│       │   └── main.css                 # 主样式文件
+│       └── js/
+│           ├── main.js                  # 主逻辑
+│           ├── auth.js                  # 认证相关
+│           ├── api.js                   # API 调用
+│           └── components/              # UI 组件
+│               ├── build-info.js        # 构建信息组件
+│               ├── test-trigger.js      # 测试触发组件
+│               └── settings.js          # 设置组件
 │
 └── not_in_porject_trigger_server.py     # 外部测试服务器 (参考)
 ```
@@ -96,6 +92,46 @@ crat/
 ### 数据库
 - **主数据库**: PostgreSQL
 - **连接池**: GORM 内置
+
+## 快速开始
+
+### 1. 克隆项目
+```bash
+git clone <repository-url>
+cd crat2
+```
+
+### 2. 后端启动
+```bash
+# 安装Go依赖
+go mod tidy
+
+# 配置环境变量文件
+cp .env.example .env
+# 编辑 .env 文件，配置数据库连接等信息
+
+# 运行后端服务 (端口6000)
+go run main.go
+```
+
+### 3. 前端开发
+```bash
+# 进入前端目录
+cd web
+
+# 安装前端依赖
+npm install
+
+# 启动前端开发服务器 (端口3000，带热重载)
+npm run dev
+
+# 或构建生产版本
+npm run build
+```
+
+### 4. 访问应用
+- 开发环境: http://localhost:3000 (前端开发服务器)
+- 生产环境: http://localhost:6000 (后端直接提供静态文件)
 
 ## 安装和部署
 
@@ -198,9 +234,8 @@ PUT /api/v1/test-items/{id}    # 更新测试项
 DELETE /api/v1/test-items/{id} # 删除测试项
 ```
 
-### 4.4 触发测试
+### 4.4 触发部署测试
 ```
-POST /api/v1/test-items/{id}/trigger  # 触发普通测试
 POST /api/v1/test-items/{id}/deploy-test  # 触发部署测试
 ```
 
@@ -211,11 +246,9 @@ POST /api/v1/test-items/{id}/deploy-test  # 触发部署测试
 }
 ```
 
-### 4.5 获取测试历史
+### 4.5 获取部署测试历史
 ```
-GET /api/v1/test-items/{id}/runs           # 获取普通测试运行历史
 GET /api/v1/test-items/{id}/deploy-runs    # 获取部署测试运行历史
-GET /api/v1/test-runs/{run_id}             # 获取普通测试运行详情
 GET /api/v1/deploy-test-runs/{run_id}      # 获取部署测试运行详情
 ```
 
@@ -277,18 +310,16 @@ curl -X POST -H "Content-Type: application/json" \
 2. 构建完成后，通过 Webhook 发送构建信息到 CRAT 平台
 3. CRAT 平台接收信息并存储到 `build_info` 表
 
-### 2. 测试触发流程
+### 2. 部署测试流程 (新架构)
 1. 用户登录 CRAT 平台
 2. 在"触发执行"页面选择测试项
 3. 选择要测试的构建版本
 4. 点击"触发测试"按钮
-5. 系统异步执行以下步骤:
-   - 创建 `test_runs` 记录，状态为 PENDING
-   - 从模板构建 HTTP 请求，替换变量
-   - 发送请求到外部测试服务器
-   - 监控测试执行状态
-   - 更新测试结果和状态
-   - 发送邮件通知（如果启用）
+5. 系统异步执行完整的部署测试流程:
+   - **下载阶段**: 根据测试项名称自动构建下载URL，下载包文件到本地
+   - **部署测试阶段**: 发送请求到外部测试服务器的 `/api/deploy_and_test` 接口
+   - **监控阶段**: 持续查询测试进度，支持步骤级别的状态追踪
+   - **通知阶段**: 发送邮件通知测试结果
 
 ## 数据库表说明
 
@@ -298,15 +329,8 @@ curl -X POST -H "Content-Type: application/json" \
 
 ### test_items (测试项表) 
 - 定义可触发的测试项目
-- 关联到特定的 Jenkins Job 和请求模板
-
-### request_templates (请求模板表)
-- 定义向外部测试服务发送的 HTTP 请求模板
-- 支持变量替换（如 {JOB_NAME}, {BUILD_NUMBER}）
-
-### test_runs (测试执行历史表)
-- 记录每次测试触发的详细历史
-- 包含状态、结果、报告链接等
+- 关联到特定的 Jenkins Job
+- 移除了对请求模板的依赖
 
 ### deploy_test_runs (部署测试运行表)
 - 记录部署测试的完整生命周期
@@ -317,14 +341,12 @@ curl -X POST -H "Content-Type: application/json" \
 - 存储平台全局配置
 - 支持动态修改
 
+### user_sessions (用户会话表)
+- 简单的用户认证系统
+
 ## 功能特性
 
-### 普通测试
-- 直接调用外部测试服务器的 API
-- 适用于简单的测试场景
-- 快速响应，无需本地资源
-
-### 部署测试 (新增功能)
+### 部署测试 (核心功能)
 部署测试是一个完整的自动化流程，包含以下步骤：
 
 1. **下载阶段 (DOWNLOADING)**
@@ -335,6 +357,7 @@ curl -X POST -H "Content-Type: application/json" \
 
 2. **部署测试阶段 (TESTING)**
    - 发送请求到外部测试服务器的 `/api/deploy_and_test` 接口
+   - 传递服务名称、包路径、安装目录等参数
    - 获取返回的 task_id
 
 3. **监控阶段 (MONITORING)**
@@ -353,7 +376,6 @@ curl -X POST -H "Content-Type: application/json" \
 - `PENDING`: 等待开始
 - `DOWNLOADING`: 正在下载包文件
 - `DOWNLOADED`: 包文件下载完成
-- `DEPLOYING`: 正在部署
 - `TESTING`: 正在执行测试
 - `MONITORING`: 正在监控测试进度
 - `COMPLETED`: 测试完成
@@ -365,16 +387,12 @@ curl -X POST -H "Content-Type: application/json" \
 - 步骤详情和错误信息
 - 支持前端查看详细的执行过程
 
-## 变量替换
+## 系统配置
 
-在请求模板中支持以下变量:
-- `{JOB_NAME}`: Jenkins Job 名称
-- `{BUILD_NUMBER}`: 构建号
-- `{PACKAGE_PATH}`: 包路径
-- `{BUILD_USER}`: 构建用户
-- `{PACKAGE_DOWNLOAD_URL}`: 完整包下载 URL
-- `{PACKAGE_BUILD_INFO_URL}`: 构建信息 URL
-- `{EXTERNAL_TEST_SERVER_URL}`: 外部测试服务器 URL
+系统支持以下可配置参数：
+- `package_download_base_url`: 包下载基础URL
+- `external_test_server_url`: 外部测试服务器URL
+- `project_name`: 项目名称
 
 ## 通知配置
 
@@ -435,6 +453,57 @@ tail -f logs/app.log
 journalctl -f -u crat
 ```
 
+## 架构更新说明
+
+### 简化后的架构
+在最新版本中，我们简化了系统架构，移除了复杂的请求模板机制，采用内置的部署测试逻辑：
+
+**移除的组件：**
+- `test_service.go` - 旧的基于模板的测试服务
+- `request_template.go` - 请求模板模型
+- `test_run.go` - 旧的测试运行记录模型
+- 相关的API路由和前端功能
+
+**保留并增强的组件：**
+- `deploy_test_service.go` - 核心的部署测试服务
+- `deploy_test_run.go` - 部署测试运行记录
+- 统一的前端"触发测试"按钮（现在调用部署测试API）
+
+### 用户体验改进
+- **一致的界面**: 用户仍然看到"触发测试"按钮，无需了解底层架构变化
+- **更强大的功能**: 所有测试都使用完整的部署测试流程
+- **更好的监控**: 步骤级别的状态追踪和详细的错误信息
+- **简化的配置**: 无需配置复杂的请求模板
+
+### 数据库迁移
+如果您正在从旧版本升级，请执行以下迁移脚本：
+```sql
+-- 执行 database/migration_remove_old_tables.sql
+-- 这将删除旧的表结构并更新测试项配置
+```
+
+### 开发建议
+- 新的部署测试是异步执行的，确保外部测试服务器能够处理长时间运行的任务
+- 监控配置是可调的，可以根据实际测试时长调整参数
+- 所有测试状态和步骤都有详细记录，便于问题排查
+
+---
+
+## 版本历史
+
+### v2.0.0 (当前版本)
+- 🔄 架构重构：移除请求模板，统一使用部署测试
+- 🚀 功能增强：完整的下载-部署-测试-监控流程
+- 📊 监控改进：步骤级别的状态追踪
+- 🎯 用户体验：简化的界面，保持一致的操作方式
+- 🗄️ 数据库优化：移除冗余表，简化数据结构
+
+### v1.x.x (已弃用)
+- 基于请求模板的测试触发机制
+- 分离的普通测试和部署测试功能
+
+---
+
 ## 许可证
 
 MIT License
@@ -455,4 +524,4 @@ MIT License
 
 ---
 
-**注意**: 首次部署时记得修改 `.env` 文件中的数据库连接字符串和其他敏感配置信息。
+**注意**: 首次部署时记得修改 `.env` 文件中的数据库连接字符串和其他敏感配置信息。新版本的架构更加简洁高效，推荐升级到最新版本。
