@@ -12,6 +12,15 @@ class CRATApp {
         this.isAdmin = localStorage.getItem('crat_is_admin') === 'true';
         this.userEmail = localStorage.getItem('crat_user_email');
         
+        // 路由映射
+        this.routes = {
+            '/': { tab: 'core', sidebar: 'buildInfo' },
+            '/builds': { tab: 'core', sidebar: 'buildInfo' },
+            '/tests': { tab: 'core', sidebar: 'triggerTest' },
+            '/settings': { tab: 'setting', sidebar: 'systemSetting' },
+            '/settings/smtp': { tab: 'setting', sidebar: 'smtpSetting' }
+        };
+        
         this.init();
     }
 
@@ -25,8 +34,14 @@ class CRATApp {
         // 初始化用户界面
         this.initUserInterface();
         
+        // 初始化路由
+        this.initRouting();
+        
         // 初始化事件监听器
         this.initEventListeners();
+        
+        // 根据当前路由设置初始状态
+        this.handleRoute();
         
         // 加载初始数据
         this.loadInitialData();
@@ -48,16 +63,74 @@ class CRATApp {
         });
     }
 
-    initEventListeners() {
-        // 标签页切换
-        document.getElementById('coreTab').addEventListener('click', () => this.switchTab('core'));
-        document.getElementById('settingTab').addEventListener('click', () => this.switchTab('setting'));
+    initRouting() {
+        // 监听浏览器前进后退
+        window.addEventListener('popstate', () => this.handleRoute());
+    }
 
-        // 侧边栏导航
-        document.getElementById('buildInfoBtn').addEventListener('click', () => this.switchSidebar('buildInfo'));
-        document.getElementById('triggerTestBtn').addEventListener('click', () => this.switchSidebar('triggerTest'));
-        document.getElementById('systemSettingBtn').addEventListener('click', () => this.switchSidebar('systemSetting'));
-        document.getElementById('smtpSettingBtn').addEventListener('click', () => this.switchSidebar('smtpSetting'));
+    handleRoute() {
+        const path = window.location.pathname;
+        const route = this.routes[path];
+        
+        if (route) {
+            this.currentTab = route.tab;
+            this.currentSidebar = route.sidebar;
+            this.switchTab(route.tab);
+            this.switchSidebar(route.sidebar);
+        } else {
+            // 默认路由到首页
+            this.navigateTo('/builds');
+        }
+    }
+
+    navigateTo(path) {
+        if (window.location.pathname !== path) {
+            history.pushState(null, '', path);
+        }
+        this.handleRoute();
+    }
+
+    initEventListeners() {
+        // 标签页切换 - 保留路由功能
+        document.getElementById('coreTab').addEventListener('click', () => {
+            this.switchTab('core');
+            // 根据当前侧边栏选择合适的路由
+            if (this.currentSidebar === 'buildInfo') {
+                this.navigateTo('/builds');
+            } else if (this.currentSidebar === 'triggerTest') {
+                this.navigateTo('/tests');
+            } else {
+                // 默认到buildInfo
+                this.navigateTo('/builds');
+            }
+        });
+        
+        document.getElementById('settingTab').addEventListener('click', () => {
+            this.switchTab('setting');
+            // Setting标签默认显示系统设置
+            this.navigateTo('/settings');
+        });
+
+        // 侧边栏导航 - 保留路由功能
+        document.getElementById('buildInfoBtn').addEventListener('click', () => {
+            this.switchSidebar('buildInfo');
+            this.navigateTo('/builds');
+        });
+        
+        document.getElementById('triggerTestBtn').addEventListener('click', () => {
+            this.switchSidebar('triggerTest');
+            this.navigateTo('/tests');
+        });
+        
+        document.getElementById('systemSettingBtn').addEventListener('click', () => {
+            this.switchSidebar('systemSetting');
+            this.navigateTo('/settings');
+        });
+        
+        document.getElementById('smtpSettingBtn').addEventListener('click', () => {
+            this.switchSidebar('smtpSetting');
+            this.navigateTo('/settings/smtp');
+        });
 
         // 登出按钮
         document.getElementById('logoutButton').addEventListener('click', () => Auth.logout());
@@ -107,25 +180,27 @@ class CRATApp {
             btn.classList.remove('bg-white', 'text-gray-900', 'shadow-sm');
             btn.classList.add('text-gray-600', 'hover:text-gray-900');
         });
-        
+
         if (tab === 'core') {
             document.getElementById('coreTab').classList.add('bg-white', 'text-gray-900', 'shadow-sm');
             document.getElementById('coreTab').classList.remove('text-gray-600', 'hover:text-gray-900');
-            
+
             // 显示 Core 侧边栏
             document.getElementById('coreSidebar').classList.remove('hidden');
             document.getElementById('settingSidebar').classList.add('hidden');
-            
+
             // 默认显示第一个内容
-            this.switchSidebar('buildInfo');
+            if (!this.currentSidebar || this.currentSidebar === 'systemSetting' || this.currentSidebar === 'smtpSetting') {
+                this.switchSidebar('buildInfo');
+            }
         } else if (tab === 'setting') {
             document.getElementById('settingTab').classList.add('bg-white', 'text-gray-900', 'shadow-sm');
             document.getElementById('settingTab').classList.remove('text-gray-600', 'hover:text-gray-900');
-            
+
             // 显示 Setting 侧边栏
             document.getElementById('coreSidebar').classList.add('hidden');
             document.getElementById('settingSidebar').classList.remove('hidden');
-            
+
             // 默认显示系统设置
             this.switchSidebar('systemSetting');
         }

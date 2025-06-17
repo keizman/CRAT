@@ -50,11 +50,17 @@ func setupRouter() *gin.Engine {
 	router.Static("/assets", "./web/dist/assets")
 	router.StaticFile("/", "./web/dist/index.html")
 	router.StaticFile("/login", "./web/dist/login.html")
-	
+
+	// 路由到不同的页面sections - 都serve同一个index.html，前端根据URL处理
+	router.StaticFile("/builds", "./web/dist/index.html")
+	router.StaticFile("/tests", "./web/dist/index.html")
+	router.StaticFile("/settings", "./web/dist/index.html")
+	router.StaticFile("/settings/smtp", "./web/dist/index.html")
+
 	// 缓存控制中间件
 	router.Use(func(c *gin.Context) {
 		path := c.Request.URL.Path
-		if path == "/" || path == "/login" {
+		if path == "/" || path == "/login" || path == "/builds" || path == "/tests" || path == "/settings" || path == "/settings/smtp" {
 			// HTML文件不缓存，确保获取最新版本
 			c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
 			c.Header("Pragma", "no-cache")
