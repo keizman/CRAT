@@ -216,7 +216,7 @@ POST /api/v1/builds
 {
   "BUILD_USER": "JenkinsUser",
   "JOB_NAME": "CDN_CORE",
-  "PACKAGE_PATH": "/builds/CDN_CORE/101/cdn_core_v1.2.3.tar.gz",
+  "PACKAGE_PATH": "CDN/pass/20250613-master-27580974441fd35aa299d78a392aa4b59b018c27/el7", //is a nginx path
   "BUILD_NUMBER": "101"
 }
 ```

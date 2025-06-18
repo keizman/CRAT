@@ -1,5 +1,6 @@
 // 导入依赖模块
 import { Auth } from './auth.js';
+import { API } from './api.js';
 import { BuildInfo } from './components/build-info.js';
 import { TestTrigger } from './components/test-trigger.js';
 import { Settings } from './components/settings.js';
@@ -61,6 +62,10 @@ class CRATApp {
                 el.style.display = 'none';
             }
         });
+
+        // 将isAdmin状态保存到window.app供其他组件使用
+        window.app = window.app || {};
+        window.app.isAdmin = this.isAdmin;
     }
 
     initRouting() {
@@ -261,12 +266,15 @@ class CRATApp {
                 return;
             }
 
-            // 添加到jobNames数组中
-            BuildInfo.jobNames.push(jobName);
+            // 调用API添加Job名称
+            await API.addJobName(jobName);
             
             jobNameInput.value = '';
+            
+            // 重新加载Job名称列表和构建信息
+            await BuildInfo.loadJobNames();
             await BuildInfo.loadBuildInfoList();
-            this.showSuccess('Job 名称已添加到显示列表');
+            this.showSuccess('Job 名称已成功添加');
         } catch (error) {
             this.showError('添加失败：' + error.message);
         }

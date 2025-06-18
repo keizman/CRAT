@@ -87,7 +87,7 @@ class TestTrigger {
                         </div>
                         
                         <div class="flex items-center space-x-2">
-                            ${window.app.isAdmin ? `
+                            ${window.app && window.app.isAdmin ? `
                                 <button class="delete-btn p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200" data-item-id="${item.id}">
                                     <i class="fas fa-trash"></i>
                                 </button>
@@ -162,7 +162,7 @@ class TestTrigger {
         });
 
         // 删除测试项
-        if (window.app.isAdmin) {
+        if (window.app && window.app.isAdmin) {
             container.querySelectorAll('.delete-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const itemId = parseInt(e.currentTarget.dataset.itemId);

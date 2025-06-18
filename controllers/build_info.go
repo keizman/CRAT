@@ -43,7 +43,7 @@ func (b *BuildInfoController) CreateBuildInfo(c *gin.Context) {
 // GetBuildInfoList 获取构建信息列表
 func (b *BuildInfoController) GetBuildInfoList(c *gin.Context) {
 	jobName := c.Query("job_name")
-	
+
 	limitStr := c.DefaultQuery("limit", "20")
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil || limit <= 0 || limit > 100 {
@@ -63,9 +63,9 @@ func (b *BuildInfoController) GetBuildInfoList(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"data":  builds,
-		"total": total,
-		"limit": limit,
+		"data":   builds,
+		"total":  total,
+		"limit":  limit,
 		"offset": offset,
 	})
 }
@@ -79,6 +79,65 @@ func (b *BuildInfoController) GetJobNames(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": jobNames})
+}
+
+// AddJobName 添加Job名称
+func (b *BuildInfoController) AddJobName(c *gin.Context) {
+	var req struct {
+		JobName string `json:"job_name" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 检查是否已存在
+	jobNames, err := b.buildService.GetJobNames()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	for _, name := range jobNames {
+		if name == req.JobName {
+			c.JSON(http.StatusConflict, gin.H{"error": "Job name already exists"})
+			return
+		}
+	}
+
+	if err := b.buildService.AddJobName(req.JobName); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 记录操作日志
+	userEmail, _ := c.Get("user_email")
+	log.Printf("Job name added successfully - Job: %s, Added by: %v", req.JobName, userEmail)
+
+	c.JSON(http.StatusOK, gin.H{"message": "Job name added successfully", "job_name": req.JobName})
+}
+
+// DeleteJobName 删除Job名称及其相关构建信息
+func (b *BuildInfoController) DeleteJobName(c *gin.Context) {
+	jobName := c.Param("job_name")
+	if jobName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "job_name is required"})
+		return
+	}
+
+	// 获取用户信息用于日志记录
+	userEmail, _ := c.Get("user_email")
+
+	if err := b.buildService.DeleteJobName(jobName); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 记录删除操作日志
+	log.Printf("Job name and related builds deleted successfully - Job: %s, Deleted by: %v", jobName, userEmail)
+
+	c.JSON(http.StatusOK, gin.H{"message": "Job name and related builds deleted successfully", "job_name": jobName})
 }
 
 // GetBuildsByJobName 根据Job名称获取构建列表
@@ -138,7 +197,7 @@ func (b *BuildInfoController) DeleteBuildInfo(c *gin.Context) {
 
 	// 获取用户信息用于日志记录
 	userEmail, _ := c.Get("user_email")
-	
+
 	// 检查构建信息是否存在
 	var buildInfo models.BuildInfo
 	if err := config.DB.First(&buildInfo, uint(id)).Error; err != nil {
@@ -172,14 +231,14 @@ func (b *BuildInfoController) DeleteBuildInfo(c *gin.Context) {
 	}
 
 	// 记录删除操作日志
-	log.Printf("Build info deleted successfully - ID: %d, Job: %s, Build: %d, Deleted by: %v", 
+	log.Printf("Build info deleted successfully - ID: %d, Job: %s, Build: %d, Deleted by: %v",
 		id, buildInfo.JobName, buildInfo.BuildNumber, userEmail)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Build info deleted successfully",
 		"deleted_build": gin.H{
-			"id": buildInfo.ID,
-			"job_name": buildInfo.JobName,
+			"id":           buildInfo.ID,
+			"job_name":     buildInfo.JobName,
 			"build_number": buildInfo.BuildNumber,
 		},
 	})

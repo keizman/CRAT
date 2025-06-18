@@ -93,6 +93,30 @@ export class API {
         }
     }
 
+    static async addJobName(jobName) {
+        console.log(`API: 正在添加Job名称: ${jobName}`);
+        try {
+            const result = await this.post('/builds/job-names', { job_name: jobName });
+            console.log(`API: 添加Job名称成功: ${jobName}`, result);
+            return result;
+        } catch (error) {
+            console.error(`API: 添加Job名称失败: ${jobName}`, error);
+            throw error;
+        }
+    }
+
+    static async deleteJobName(jobName) {
+        console.log(`API: 正在删除Job名称: ${jobName}`);
+        try {
+            const result = await this.delete(`/builds/job-names/${encodeURIComponent(jobName)}`);
+            console.log(`API: 删除Job名称成功: ${jobName}`, result);
+            return result;
+        } catch (error) {
+            console.error(`API: 删除Job名称失败: ${jobName}`, error);
+            throw error;
+        }
+    }
+
     // 测试项相关API
     static async getTestItems() {
         return this.get('/test-items');

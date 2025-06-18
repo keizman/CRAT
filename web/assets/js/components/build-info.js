@@ -166,6 +166,11 @@ class BuildInfo {
                         </h3>
                         <div class="flex items-center space-x-2 text-sm text-gray-500">
                             <span>${builds.length} 个构建</span>
+                            ${window.app && window.app.isAdmin ? `
+                                <button class="delete-job-btn p-1 rounded hover:bg-red-50 text-red-500" data-job="${jobName}" title="删除Job: ${jobName}">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            ` : ''}
                             <button class="toggle-btn p-1 rounded hover:bg-gray-100" data-job="${jobName}">
                                 <i class="fas fa-chevron-down transition-transform duration-200" style="transform: ${isExpanded ? 'rotate(180deg)' : 'rotate(0deg)'}"></i>
                             </button>
@@ -198,6 +203,15 @@ class BuildInfo {
                 const jobName = e.currentTarget.dataset.jobName;
                 const buildNumber = parseInt(e.currentTarget.dataset.buildNumber);
                 this.deleteBuildInfo(buildId, jobName, buildNumber);
+            });
+        });
+
+        // 添加删除Job按钮事件监听器
+        container.querySelectorAll('.delete-job-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const jobName = e.currentTarget.dataset.job;
+                this.deleteJobName(jobName);
             });
         });
     }
@@ -272,6 +286,44 @@ class BuildInfo {
             const errorMessage = error.message || '未知错误';
             
             const failureMessage = `删除构建信息 ${buildDisplayName} 失败：${errorMessage}`;
+            if (window.app) {
+                window.app.showError(failureMessage);
+            } else {
+                alert(`错误: ${failureMessage}`);
+            }
+        }
+    }
+
+    static async deleteJobName(jobName) {
+        const confirmMessage = `确定要删除Job名称 "${jobName}" 吗？\n\n此操作将会：\n- 从系统中删除此Job名称配置\n- 删除与此Job相关的所有构建信息\n- 删除相关的部署测试运行记录\n- 此操作不可恢复\n\n请确认是否继续？`;
+        
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+
+        try {
+            console.log(`正在删除Job名称: ${jobName}...`);
+            
+            // 调用API删除Job名称
+            const response = await API.deleteJobName(jobName);
+            console.log('删除Job API响应:', response);
+            
+            // 重新加载Job名称和构建信息列表
+            await this.loadJobNames();
+            await this.loadBuildInfoList();
+            
+            // 显示成功消息
+            const successMessage = `Job名称 "${jobName}" 及其相关构建信息已成功删除`;
+            if (window.app) {
+                window.app.showSuccess(successMessage);
+            } else {
+                alert(`成功: ${successMessage}`);
+            }
+        } catch (error) {
+            console.error('Failed to delete job name:', error);
+            const errorMessage = error.message || '未知错误';
+            
+            const failureMessage = `删除Job名称 "${jobName}" 失败：${errorMessage}`;
             if (window.app) {
                 window.app.showError(failureMessage);
             } else {

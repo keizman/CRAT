@@ -124,8 +124,8 @@
                     <p class="text-gray-600">管理来自 Jenkins 的构建信息</p>
                 </div>
 
-                <!-- 添加 Job 名称 -->
-                <div class="mb-6 bento-card rounded-2xl p-6">
+                <!-- 添加 Job 名称 - 只有管理员可见 -->
+                <div id="adminOnly-addJob" class="mb-6 bento-card rounded-2xl p-6" style="display: none;">
                     <div class="flex items-center space-x-4">
                         <input 
                             type="text" 
@@ -152,8 +152,8 @@
                     <p class="text-gray-600">管理和触发自动化测试</p>
                 </div>
 
-                <!-- 添加测试项 -->
-                <div class="mb-6 bento-card rounded-2xl p-6" id="adminOnly1" style="display: none;">
+                <!-- 添加测试项 - 只有管理员可见 -->
+                <div id="adminOnly-addTest" class="mb-6 bento-card rounded-2xl p-6" style="display: none;">
                     <div class="flex items-center space-x-4">
                         <input 
                             type="text" 

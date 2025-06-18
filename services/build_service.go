@@ -139,3 +139,69 @@ func (s *BuildService) GetLatestBuildByJobName(jobName string) (*models.BuildInf
 	}
 	return &build, nil
 }
+
+// AddJobName 添加Job名称（这个方法主要是为了前端的一致性，实际上Job名称是通过构建信息自动添加的）
+func (s *BuildService) AddJobName(jobName string) error {
+	// 由于Job名称是通过构建信息自动获取的，这里我们只做验证
+	// 实际上，Job名称会在有真实构建信息时自动出现在列表中
+
+	// 检查Job名称是否已存在
+	var count int64
+	err := config.DB.Model(&models.BuildInfo{}).
+		Where("job_name = ?", jobName).
+		Count(&count).Error
+
+	if err != nil {
+		return fmt.Errorf("failed to check job name existence: %v", err)
+	}
+
+	// 如果Job名称已经存在构建信息，返回成功
+	if count > 0 {
+		return nil
+	}
+
+	// 如果不存在，创建一个临时记录来标记这个Job名称
+	// 注意：这个记录可能在后续有真实构建信息时被更新
+	buildInfo := &models.BuildInfo{
+		JobName:     jobName,
+		BuildNumber: 0, // 使用0表示这是一个占位记录
+		PackagePath: "",
+		BuildUser:   "System",
+		CreatedAt:   time.Now(),
+		RawData:     []byte("{}"),
+	}
+
+	return config.DB.Create(buildInfo).Error
+}
+
+// DeleteJobName 删除Job名称及其所有相关构建信息
+func (s *BuildService) DeleteJobName(jobName string) error {
+	// 开启事务
+	tx := config.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// 首先删除相关的部署测试运行记录
+	if err := tx.Where("build_info_id IN (SELECT id FROM build_infos WHERE job_name = ?)", jobName).
+		Delete(&models.DeployTestRun{}).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to delete related deploy test runs: %v", err)
+	}
+
+	// 然后删除构建信息
+	if err := tx.Where("job_name = ?", jobName).
+		Delete(&models.BuildInfo{}).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to delete build infos: %v", err)
+	}
+
+	// 提交事务
+	if err := tx.Commit().Error; err != nil {
+		return fmt.Errorf("failed to commit transaction: %v", err)
+	}
+
+	return nil
+}

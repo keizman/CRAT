@@ -117,6 +117,8 @@ func setupRouter() *gin.Engine {
 		{
 			// 构建信息管理
 			admin.DELETE("/builds/:id", buildInfoController.DeleteBuildInfo)
+			admin.POST("/builds/job-names", buildInfoController.AddJobName)
+			admin.DELETE("/builds/job-names/:job_name", buildInfoController.DeleteJobName)
 
 			// 测试项管理
 			admin.POST("/test-items", testItemController.CreateTestItem)
