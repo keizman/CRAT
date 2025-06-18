@@ -4,6 +4,7 @@ import { API } from './api.js';
 import { BuildInfo } from './components/build-info.js';
 import { TestTrigger } from './components/test-trigger.js';
 import { Settings } from './components/settings.js';
+import { ParameterSets } from './components/parameter-sets.js';
 
 // 主应用逻辑
 class CRATApp {
@@ -15,9 +16,10 @@ class CRATApp {
         
         // 路由映射
         this.routes = {
-            '/': { tab: 'core', sidebar: 'buildInfo' },
-            '/builds': { tab: 'core', sidebar: 'buildInfo' },
+            '/': { tab: 'core', sidebar: 'triggerTest' },
             '/tests': { tab: 'core', sidebar: 'triggerTest' },
+            '/builds': { tab: 'core', sidebar: 'buildInfo' },
+            '/parameter-sets': { tab: 'core', sidebar: 'parameterSets' },
             '/settings': { tab: 'setting', sidebar: 'systemSetting' },
             '/settings/smtp': { tab: 'setting', sidebar: 'smtpSetting' }
         };
@@ -84,7 +86,7 @@ class CRATApp {
             this.switchSidebar(route.sidebar);
         } else {
             // 默认路由到首页
-            this.navigateTo('/builds');
+            this.navigateTo('/tests');
         }
     }
 
@@ -100,13 +102,15 @@ class CRATApp {
         document.getElementById('coreTab').addEventListener('click', () => {
             this.switchTab('core');
             // 根据当前侧边栏选择合适的路由
-            if (this.currentSidebar === 'buildInfo') {
-                this.navigateTo('/builds');
-            } else if (this.currentSidebar === 'triggerTest') {
+            if (this.currentSidebar === 'triggerTest') {
                 this.navigateTo('/tests');
-            } else {
-                // 默认到buildInfo
+            } else if (this.currentSidebar === 'buildInfo') {
                 this.navigateTo('/builds');
+            } else if (this.currentSidebar === 'parameterSets') {
+                this.navigateTo('/parameter-sets');
+            } else {
+                // 默认到triggerTest
+                this.navigateTo('/tests');
             }
         });
         
@@ -117,14 +121,19 @@ class CRATApp {
         });
 
         // 侧边栏导航 - 保留路由功能
+        document.getElementById('triggerTestBtn').addEventListener('click', () => {
+            this.switchSidebar('triggerTest');
+            this.navigateTo('/tests');
+        });
+        
         document.getElementById('buildInfoBtn').addEventListener('click', () => {
             this.switchSidebar('buildInfo');
             this.navigateTo('/builds');
         });
-        
-        document.getElementById('triggerTestBtn').addEventListener('click', () => {
-            this.switchSidebar('triggerTest');
-            this.navigateTo('/tests');
+
+        document.getElementById('parameterSetsBtn').addEventListener('click', () => {
+            this.switchSidebar('parameterSets');
+            this.navigateTo('/parameter-sets');
         });
         
         document.getElementById('systemSettingBtn').addEventListener('click', () => {
@@ -169,6 +178,12 @@ class CRATApp {
             // 加载测试项
             await TestTrigger.loadTestItems();
             
+            // 加载参数集
+            await ParameterSets.loadParameterSets();
+            
+            // 初始化组件
+            ParameterSets.init();
+            
         } catch (error) {
             console.error('Failed to load initial data:', error);
             this.showError('加载数据失败，请刷新页面重试');
@@ -196,7 +211,7 @@ class CRATApp {
 
             // 默认显示第一个内容
             if (!this.currentSidebar || this.currentSidebar === 'systemSetting' || this.currentSidebar === 'smtpSetting') {
-                this.switchSidebar('buildInfo');
+                this.switchSidebar('triggerTest');
             }
         } else if (tab === 'setting') {
             document.getElementById('settingTab').classList.add('bg-white', 'text-gray-900', 'shadow-sm');
@@ -227,15 +242,20 @@ class CRATApp {
 
         // 显示对应的内容区域和激活侧边栏按钮
         switch (sidebar) {
+            case 'triggerTest':
+                document.getElementById('triggerTestBtn').classList.add('sidebar-active');
+                document.getElementById('triggerTestBtn').classList.remove('text-gray-600', 'hover:bg-gray-50');
+                document.getElementById('triggerTestContent').classList.remove('hidden');
+                break;
             case 'buildInfo':
                 document.getElementById('buildInfoBtn').classList.add('sidebar-active');
                 document.getElementById('buildInfoBtn').classList.remove('text-gray-600', 'hover:bg-gray-50');
                 document.getElementById('buildInfoContent').classList.remove('hidden');
                 break;
-            case 'triggerTest':
-                document.getElementById('triggerTestBtn').classList.add('sidebar-active');
-                document.getElementById('triggerTestBtn').classList.remove('text-gray-600', 'hover:bg-gray-50');
-                document.getElementById('triggerTestContent').classList.remove('hidden');
+            case 'parameterSets':
+                document.getElementById('parameterSetsBtn').classList.add('sidebar-active');
+                document.getElementById('parameterSetsBtn').classList.remove('text-gray-600', 'hover:bg-gray-50');
+                document.getElementById('parameterSetsContent').classList.remove('hidden');
                 break;
             case 'systemSetting':
                 document.getElementById('systemSettingBtn').classList.add('sidebar-active');

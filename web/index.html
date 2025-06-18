@@ -88,13 +88,17 @@
                 <!-- Core 标签下的侧边栏 -->
                 <div id="coreSidebar" class="sidebar-content">
                     <div class="space-y-2">
-                        <button id="buildInfoBtn" class="sidebar-item w-full flex items-center px-4 py-3 text-left rounded-lg transition-all duration-200 sidebar-active">
+                        <button id="triggerTestBtn" class="sidebar-item w-full flex items-center px-4 py-3 text-left rounded-lg transition-all duration-200 sidebar-active">
+                            <i class="fas fa-play-circle mr-3"></i>
+                            <span>Trigger Test</span>
+                        </button>
+                        <button id="buildInfoBtn" class="sidebar-item w-full flex items-center px-4 py-3 text-left rounded-lg transition-all duration-200 text-gray-600 hover:bg-gray-50">
                             <i class="fas fa-cube mr-3"></i>
                             <span>Build Info</span>
                         </button>
-                        <button id="triggerTestBtn" class="sidebar-item w-full flex items-center px-4 py-3 text-left rounded-lg transition-all duration-200 text-gray-600 hover:bg-gray-50">
-                            <i class="fas fa-play-circle mr-3"></i>
-                            <span>Trigger Test</span>
+                        <button id="parameterSetsBtn" class="sidebar-item w-full flex items-center px-4 py-3 text-left rounded-lg transition-all duration-200 text-gray-600 hover:bg-gray-50">
+                            <i class="fas fa-list-alt mr-3"></i>
+                            <span>Parameter Sets</span>
                         </button>
                     </div>
                 </div>
@@ -250,6 +254,26 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Core: Parameter Sets -->
+            <div id="parameterSetsContent" class="content-section hidden">
+                <div class="mb-8">
+                    <h2 class="text-3xl font-bold text-gray-900 mb-2">请求参数管理</h2>
+                    <p class="text-gray-600">管理触发测试时发送请求的参数, 置空不覆盖， 有值则覆盖</p>
+                </div>
+
+                <!-- 创建参数集按钮 - 只有管理员可见 -->
+                <div id="adminOnly-createParameterSet" class="mb-6" style="display: none;">
+                    <button id="createParameterSetBtn" class="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200">
+                        <i class="fas fa-plus mr-2"></i>创建请求参数
+                    </button>
+                </div>
+
+                <!-- 参数集列表 -->
+                <div id="parameterSetsList" class="space-y-4">
+                    <!-- 动态加载内容 -->
+                </div>
+            </div>
         </main>
     </div>
 
@@ -258,6 +282,84 @@
         <div class="bg-white rounded-2xl p-8 text-center">
             <i class="fas fa-spinner fa-spin text-4xl text-blue-500 mb-4"></i>
             <p class="text-gray-600">加载中...</p>
+        </div>
+    </div>
+
+    <!-- 参数集编辑模态框 -->
+    <div id="parameterSetModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl p-8 max-w-2xl w-full mx-4 max-h-screen overflow-y-auto">
+            <h3 id="parameterSetModalTitle" class="text-2xl font-bold text-gray-900 mb-6">创建参数集</h3>
+            
+            <form id="parameterSetForm" class="space-y-6">
+                <div class="grid grid-cols-1 gap-6">
+                    <div>
+                        <label for="paramSetName" class="block text-sm font-medium text-gray-700 mb-2">名称 *</label>
+                        <input type="text" id="paramSetName" name="name" required 
+                               class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    
+                    <div>
+                        <label for="paramSetDescription" class="block text-sm font-medium text-gray-700 mb-2">描述</label>
+                        <textarea id="paramSetDescription" name="description" rows="3"
+                                  class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
+                    </div>
+                    
+                    <div class="border-t pt-6">
+                        <h4 class="text-lg font-medium text-gray-900 mb-4">测试参数</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="serviceName" class="block text-sm font-medium text-gray-700 mb-2">服务名称</label>
+                                <input type="text" id="serviceName" name="service_name" 
+                                       class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            </div>
+                            
+                            <div>
+                                <label for="installDir" class="block text-sm font-medium text-gray-700 mb-2">安装目录</label>
+                                <input type="text" id="installDir" name="install_dir" 
+                                       class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            </div>
+                            
+                            <div>
+                                <label for="upgradeType" class="block text-sm font-medium text-gray-700 mb-2">升级类型</label>
+                                <select id="upgradeType" name="upgrade_type" 
+                                        class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    <option value="full">full</option>
+                                    <option value="update">update</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label for="testPath" class="block text-sm font-medium text-gray-700 mb-2">测试用例路径</label>
+                                <input type="text" id="testPath" name="test_path" 
+                                       class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            </div>
+                            
+                            <div class="md:col-span-2">
+                                <label for="baseUrl" class="block text-sm font-medium text-gray-700 mb-2">报告基础URL</label>
+                                <input type="text" id="baseUrl" name="base_url" value="http://192.168.1.118:59996"
+                                       class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            </div>
+                            
+                            <div class="md:col-span-2">
+                                <label for="reportKeyword" class="block text-sm font-medium text-gray-700 mb-2">测试报告前缀(默认服务名称)</label>
+                                <input type="text" id="reportKeyword" name="report_keyword" 
+                                       class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-4 pt-6 border-t">
+                    <button type="button" id="cancelParameterSetBtn" 
+                            class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200">
+                        取消
+                    </button>
+                    <button type="submit" 
+                            class="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200">
+                        保存
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 

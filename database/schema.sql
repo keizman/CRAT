@@ -23,7 +23,8 @@ CREATE TABLE test_items (
     associated_job_name VARCHAR(255),
     notification_enabled BOOLEAN DEFAULT false,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    associated_parameter_set_id BIGINT REFERENCES parameter_sets(id) ON DELETE SET NULL
 );
 
 -- 创建索引
@@ -42,7 +43,7 @@ INSERT INTO system_settings (key, value, description) VALUES
 ('project_name', 'Autotest Platform', '项目名称'),
 ('package_build_info_base_url', 'http://127.0.0.1:8080/job/', 'Jenkins构建信息基础URL'),
 ('package_download_base_url', 'http://127.0.0.1/build/', '包下载基础URL'),
-('external_test_server_url', 'http://192.168.1.118:59996', '外部测试服务器URL');
+('external_test_server_url', 'http://192.168.1.118:8000', '外部测试服务器URL');
 
 -- 4. 用户会话表 (简单认证)
 CREATE TABLE user_sessions (
@@ -58,7 +59,20 @@ CREATE TABLE user_sessions (
 CREATE INDEX idx_user_sessions_token ON user_sessions(session_token);
 CREATE INDEX idx_user_sessions_email ON user_sessions(email);
 
--- 5. 部署测试运行表
+-- 5. 参数集合表
+CREATE TABLE parameter_sets (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(255) UNIQUE NOT NULL,
+    description TEXT,
+    parameters JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 创建索引
+CREATE INDEX idx_parameter_sets_name ON parameter_sets(name);
+
+-- 6. 部署测试运行表
 CREATE TABLE deploy_test_runs (
     id BIGSERIAL PRIMARY KEY,
     test_item_id BIGINT REFERENCES test_items(id) ON DELETE CASCADE,
@@ -75,7 +89,9 @@ CREATE TABLE deploy_test_runs (
     query_timeout INTEGER DEFAULT 30,
     started_at TIMESTAMPTZ DEFAULT NOW(),
     finished_at TIMESTAMPTZ,
-    error_message TEXT
+    error_message TEXT,
+    response_raw_data JSONB,
+    parameter_set_id BIGINT REFERENCES parameter_sets(id) ON DELETE SET NULL
 );
 
 -- 创建索引
@@ -85,6 +101,21 @@ CREATE TABLE deploy_test_runs (
 INSERT INTO build_info (job_name, build_number, package_path, build_user) VALUES
 ('CDN_CORE', 101, '/builds/CDN_CORE/101/cdn_core_v1.2.3.tar.gz', 'JenkinsUser'),
 ('CDN_SsgAgent', 55, '/builds/CDN_SsgAgent/55/ssgagent_v2.0.0.tar.gz', 'CI');
+
+-- 插入默认参数集合
+INSERT INTO parameter_sets (name, description, parameters) VALUES 
+(
+    'default', 
+    'Default test parameters',
+    '{
+        "service_name": "",
+        "install_dir": "",
+        "upgrade_type": "full",
+        "test_path": "",
+        "base_url": "http://192.168.1.118:59996",
+        "report_keyword": ""
+    }'
+);
 
 -- 示例测试项
 INSERT INTO test_items (name, description, associated_job_name, notification_enabled) VALUES

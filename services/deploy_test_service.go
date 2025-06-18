@@ -33,7 +33,7 @@ func NewDeployTestService() *DeployTestService {
 }
 
 // TriggerDeployTest 触发部署测试
-func (s *DeployTestService) TriggerDeployTest(testItemID, buildInfoID uint, triggeredBy string) (*models.DeployTestRun, error) {
+func (s *DeployTestService) TriggerDeployTest(testItemID, buildInfoID uint, triggeredBy string, parameterSetID *uint) (*models.DeployTestRun, error) {
 	// 获取测试项和构建信息
 	var testItem models.TestItem
 	if err := config.DB.First(&testItem, testItemID).Error; err != nil {
@@ -47,15 +47,16 @@ func (s *DeployTestService) TriggerDeployTest(testItemID, buildInfoID uint, trig
 
 	// 创建部署测试运行记录
 	deployTestRun := &models.DeployTestRun{
-		TestItemID:    testItemID,
-		BuildInfoID:   buildInfoID,
-		TriggeredBy:   triggeredBy,
-		Status:        models.DeployTestStatusPending,
-		MaxQueryHours: 3,  // 默认3小时
-		QueryInterval: 60, // 默认60秒
-		QueryTimeout:  30, // 默认30秒
-		StartedAt:     time.Now(),
-		Steps:         json.RawMessage("[]"),
+		TestItemID:     testItemID,
+		BuildInfoID:    buildInfoID,
+		TriggeredBy:    triggeredBy,
+		ParameterSetID: parameterSetID,
+		Status:         models.DeployTestStatusPending,
+		MaxQueryHours:  3,  // 默认3小时
+		QueryInterval:  60, // 默认60秒
+		QueryTimeout:   30, // 默认30秒
+		StartedAt:      time.Now(),
+		Steps:          json.RawMessage("[]"),
 	}
 
 	if err := config.DB.Create(deployTestRun).Error; err != nil {
@@ -180,28 +181,46 @@ func (s *DeployTestService) findPackageFile(dirURL, testItemName string) (string
 		return "", fmt.Errorf("failed to read directory listing: %v", err)
 	}
 
-	// 解析HTML响应，查找包文件
-	// 根据示例，我们要找类似 "cds-5.3.9-c54239ed_x86_64-linux-gnu_20240626_release.tgz" 的文件
 	content := string(body)
 
-	// 构建正则表达式匹配包文件
-	// 匹配模式: testItemName-版本号_架构_日期_release.tgz
-	pattern := fmt.Sprintf(`href="([^"]*%s[^"]*release\.tgz)"`, strings.ToLower(testItemName))
+	// 根据需求实现新的包文件查找逻辑
+	// 使用正则表达式匹配包含测试项名称的href链接
+	testItemLower := strings.ToLower(testItemName)
+	pattern := fmt.Sprintf(`href="([^"]*%s[^"]*)"`, testItemLower)
 	re := regexp.MustCompile(pattern)
-	matches := re.FindStringSubmatch(content)
+	matches := re.FindAllStringSubmatch(content, -1)
 
-	if len(matches) < 2 {
-		// 如果没找到，尝试更宽泛的匹配
-		pattern = fmt.Sprintf(`href="([^"]*%s[^"]*\.tgz)"`, strings.ToLower(testItemName))
-		re = regexp.MustCompile(pattern)
-		matches = re.FindStringSubmatch(content)
+	var candidates []string
+	for _, match := range matches {
+		if len(match) > 1 {
+			candidates = append(candidates, match[1])
+		}
 	}
 
-	if len(matches) < 2 {
-		return "", fmt.Errorf("package file not found for test item: %s", testItemName)
+	if len(candidates) == 0 {
+		return "", fmt.Errorf("no package files found for test item: %s", testItemName)
 	}
 
-	return matches[1], nil
+	// 如果找到多个候选文件，优先选择包含"release"的文件
+	var selectedFile string
+	for _, candidate := range candidates {
+		if strings.Contains(strings.ToLower(candidate), "release") {
+			selectedFile = candidate
+			break
+		}
+	}
+
+	// 如果没有找到包含"release"的文件，选择第一个候选文件
+	if selectedFile == "" {
+		selectedFile = candidates[0]
+	}
+
+	// 验证文件是否以.tar.gz结尾
+	if !strings.HasSuffix(strings.ToLower(selectedFile), ".tar.gz") {
+		return "", fmt.Errorf("selected file is not a tar.gz file: %s", selectedFile)
+	}
+
+	return selectedFile, nil
 }
 
 // downloadFile 下载文件到本地
@@ -230,10 +249,18 @@ func (s *DeployTestService) downloadFile(url, filepath string) error {
 func (s *DeployTestService) triggerExternalTest(deployTestRun *models.DeployTestRun, testItem *models.TestItem, buildInfo *models.BuildInfo) error {
 	s.updateDeployTestStatus(deployTestRun.ID, models.DeployTestStatusTesting, "")
 	s.addStep(deployTestRun.ID, models.StepTest, "RUNNING", "Triggering external test", "")
+
 	// 获取系统设置
 	settings, err := s.systemUtils.GetSystemSettings()
 	if err != nil {
 		s.addStep(deployTestRun.ID, models.StepTest, "FAILED", "", fmt.Sprintf("Failed to get system settings: %v", err))
+		return err
+	}
+
+	// 获取参数配置
+	params, err := s.getTestParameters(deployTestRun.ParameterSetID, testItem)
+	if err != nil {
+		s.addStep(deployTestRun.ID, models.StepTest, "FAILED", "", fmt.Sprintf("Failed to get test parameters: %v", err))
 		return err
 	}
 
@@ -242,17 +269,17 @@ func (s *DeployTestService) triggerExternalTest(deployTestRun *models.DeployTest
 	if !strings.HasSuffix(testServerURL, "/") {
 		testServerURL += "/"
 	}
-	requestURL := testServerURL + "api/deploy_and_test"
+	requestURL := testServerURL + "api/deploy_and_test_mock"
+
 	// 构建请求体
 	requestBody := map[string]interface{}{
-		"service_name":   strings.ToUpper(testItem.Name),
+		"service_name":   params.ServiceName,
 		"package_path":   deployTestRun.DownloadPath,
-		"install_dir":    s.getInstallDir(testItem.Name),
-		"upgrade_type":   "full",
-		"job_name":       buildInfo.JobName,
-		"build_number":   buildInfo.BuildNumber,
-		"build_user":     buildInfo.BuildUser,
-		"test_item_name": testItem.Name,
+		"install_dir":    params.InstallDir,
+		"upgrade_type":   params.UpgradeType,
+		"test_path":      params.TestPath,
+		"base_url":       params.BaseURL,
+		"report_keyword": params.ReportKeyword,
 	}
 
 	// 发送请求
@@ -363,16 +390,22 @@ func (s *DeployTestService) monitorTestProgress(deployTestRun *models.DeployTest
 			// 提取报告URL
 			var reportURL string
 			if result, ok := taskStatus["result"].(map[string]interface{}); ok {
-				if url, ok := result["report_url"].(string); ok {
-					reportURL = url
+				if testResult, ok := result["test"].(map[string]interface{}); ok {
+					if url, ok := testResult["report_url"].(string); ok {
+						reportURL = url
+					}
 				}
 			}
 
+			// 存储原始响应数据
+			responseRawData, _ := json.Marshal(taskStatus)
+
 			// 更新记录
 			updates := map[string]interface{}{
-				"status":      models.DeployTestStatusCompleted,
-				"report_url":  reportURL,
-				"finished_at": time.Now(),
+				"status":            models.DeployTestStatusCompleted,
+				"report_url":        reportURL,
+				"response_raw_data": responseRawData,
+				"finished_at":       time.Now(),
 			}
 			config.DB.Model(&models.DeployTestRun{}).Where("id = ?", deployTestRun.ID).Updates(updates)
 
@@ -437,6 +470,45 @@ func (s *DeployTestService) sendNotification(deployTestRun *models.DeployTestRun
 			s.addStep(deployTestRun.ID, models.StepNotify, "COMPLETED", "Failure notification sent", "")
 		}
 	}
+}
+
+// getTestParameters 获取测试参数配置
+func (s *DeployTestService) getTestParameters(parameterSetID *uint, testItem *models.TestItem) (*models.TestParameters, error) {
+	var parameterSet models.ParameterSet
+
+	if parameterSetID != nil {
+		// 使用指定的参数集
+		if err := config.DB.First(&parameterSet, *parameterSetID).Error; err != nil {
+			return nil, fmt.Errorf("failed to get parameter set: %v", err)
+		}
+	} else if testItem.AssociatedParameterSetID != nil {
+		// 使用测试项关联的参数集
+		if err := config.DB.First(&parameterSet, *testItem.AssociatedParameterSetID).Error; err != nil {
+			return nil, fmt.Errorf("failed to get associated parameter set: %v", err)
+		}
+	} else {
+		// 使用默认参数集
+		if err := config.DB.Where("name = ?", "default").First(&parameterSet).Error; err != nil {
+			return nil, fmt.Errorf("failed to get default parameter set: %v", err)
+		}
+	}
+
+	params, err := parameterSet.GetParameters()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse parameters: %v", err)
+	}
+
+	// 如果参数中的service_name为空，使用测试项名称
+	if params.ServiceName == "" {
+		params.ServiceName = testItem.Name
+	}
+
+	// 如果report_keyword为空，使用测试项名称
+	if params.ReportKeyword == "" {
+		params.ReportKeyword = testItem.Name
+	}
+
+	return params, nil
 }
 
 // getInstallDir 根据服务名称获取安装目录
@@ -608,6 +680,6 @@ func (s *DeployTestService) ClearDeployTestHistory(testItemID uint) (int64, erro
 
 	deletedCount := result.RowsAffected
 	log.Printf("Successfully cleared %d deploy test runs for test item '%s' (ID: %d)", deletedCount, testItem.Name, testItemID)
-	
+
 	return deletedCount, nil
 }

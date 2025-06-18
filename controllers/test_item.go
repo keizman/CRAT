@@ -121,7 +121,8 @@ func (t *TestItemController) TriggerDeployTest(c *gin.Context) {
 	}
 
 	var req struct {
-		BuildInfoID uint `json:"build_info_id" binding:"required"`
+		BuildInfoID    uint  `json:"build_info_id" binding:"required"`
+		ParameterSetID *uint `json:"parameter_set_id"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -136,7 +137,7 @@ func (t *TestItemController) TriggerDeployTest(c *gin.Context) {
 		return
 	}
 
-	deployTestRun, err := t.deployTestService.TriggerDeployTest(uint(id), req.BuildInfoID, userEmail.(string))
+	deployTestRun, err := t.deployTestService.TriggerDeployTest(uint(id), req.BuildInfoID, userEmail.(string), req.ParameterSetID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -200,6 +201,7 @@ func (t *TestItemController) GetDeployTestRun(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"data": deployTestRun})
 }
+
 
 // ClearDeployTestHistory 清理部署测试历史
 func (t *TestItemController) ClearDeployTestHistory(c *gin.Context) {

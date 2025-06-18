@@ -57,7 +57,7 @@ func (s *TestService) DeleteTestItem(id uint) error {
 func (s *TestService) TriggerTest(testItemID, buildInfoID uint, triggeredBy string) (*models.DeployTestRun, error) {
 	// 使用部署测试服务来处理测试触发
 	deployTestService := NewDeployTestService()
-	return deployTestService.TriggerDeployTest(testItemID, buildInfoID, triggeredBy)
+	return deployTestService.TriggerDeployTest(testItemID, buildInfoID, triggeredBy, nil)
 }
 
 // GetTestRuns 获取测试运行历史 - 重定向到部署测试运行

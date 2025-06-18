@@ -132,16 +132,20 @@ export class API {
 
     static async deleteTestItem(id) {
         return this.delete(`/test-items/${id}`);
-    }    static async triggerTest(testItemId, buildInfoId) {
-        return this.post(`/test-items/${testItemId}/deploy-test`, {
-            build_info_id: buildInfoId
-        });
+    }    static async triggerTest(testItemId, buildInfoId, parameterSetId = null) {
+        const payload = { build_info_id: buildInfoId };
+        if (parameterSetId) {
+            payload.parameter_set_id = parameterSetId;
+        }
+        return this.post(`/test-items/${testItemId}/deploy-test`, payload);
     }
 
-    static async triggerDeployTest(testItemId, buildInfoId) {
-        return this.post(`/test-items/${testItemId}/deploy-test`, {
-            build_info_id: buildInfoId
-        });
+    static async triggerDeployTest(testItemId, buildInfoId, parameterSetId = null) {
+        const payload = { build_info_id: buildInfoId };
+        if (parameterSetId) {
+            payload.parameter_set_id = parameterSetId;
+        }
+        return this.post(`/test-items/${testItemId}/deploy-test`, payload);
     }
 
     static async getTestRuns(testItemId, params = {}) {
@@ -183,5 +187,26 @@ export class API {
 
     static async updateSystemSetting(key, value, description = '') {
         return this.put(`/settings/${key}`, { value, description });
+    }
+
+    // 参数集相关API
+    static async getParameterSets() {
+        return this.get('/parameter-sets');
+    }
+
+    static async getParameterSet(id) {
+        return this.get(`/parameter-sets/${id}`);
+    }
+
+    static async createParameterSet(parameterSet) {
+        return this.post('/parameter-sets', parameterSet);
+    }
+
+    static async updateParameterSet(id, updates) {
+        return this.put(`/parameter-sets/${id}`, updates);
+    }
+
+    static async deleteParameterSet(id) {
+        return this.delete(`/parameter-sets/${id}`);
     }
 }

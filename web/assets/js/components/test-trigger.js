@@ -50,27 +50,43 @@ class TestTrigger {
             
             return `
                 <div class="bento-card rounded-2xl p-6">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-4 flex-1">
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-start space-x-4 flex-1">
                             <div class="flex items-center space-x-3">
                                 <button class="toggle-btn p-2 rounded-lg hover:bg-gray-100" data-item-id="${item.id}">
                                     <i class="fas fa-chevron-right transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}"></i>
                                 </button>
-                                <h3 class="text-lg font-bold text-gray-800">${item.name}</h3>
+                                <div class="min-w-0 flex-shrink-0" style="max-width: 200px;">
+                                    <h3 class="text-lg font-bold text-gray-800">${item.name}</h3>
+                                    ${item.description ? `<p class="text-sm text-gray-600 mt-1 truncate" title="${item.description}">${item.description}</p>` : ''}
+                                </div>
                             </div>
                             
-                            <div class="flex items-center space-x-2">
-                                <span class="text-sm text-gray-500">Version:</span>
-                                <div class="relative">
-                                    <input type="text" 
-                                           class="version-search px-3 py-1 border border-gray-200 rounded-lg text-sm w-64" 
-                                           data-item-id="${item.id}"
-                                           placeholder="搜索或选择版本..."
-                                           autocomplete="off">
-                                    <div class="version-dropdown absolute top-full left-0 min-w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden z-50 whitespace-nowrap" 
-                                         data-item-id="${item.id}">
+                            <div class="flex items-center space-x-4 flex-1">
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-sm text-gray-500">Version:</span>
+                                    <div class="relative">
+                                        <input type="text" 
+                                               class="version-search px-3 py-1 border border-gray-200 rounded-lg text-sm w-64" 
+                                               data-item-id="${item.id}"
+                                               placeholder="搜索或选择版本..."
+                                               autocomplete="off">
+                                        <div class="version-dropdown absolute top-full left-0 min-w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden z-50 whitespace-nowrap" 
+                                             data-item-id="${item.id}">
+                                        </div>
+                                        <input type="hidden" class="version-value" data-item-id="${item.id}" value="">
                                     </div>
-                                    <input type="hidden" class="version-value" data-item-id="${item.id}" value="">
+                                </div>
+                                
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-sm text-gray-500">Params:</span>
+                                    <div class="parameter-display text-sm text-gray-800 min-w-0 cursor-pointer hover:bg-gray-50 px-2 py-1 rounded border border-transparent hover:border-gray-200 transition-colors" data-item-id="${item.id}" style="max-width: 200px;">
+                                        <span class="truncate block" title="默认参数">默认参数</span>
+                                    </div>
+                                    <select class="parameter-select px-3 py-1 border border-gray-200 rounded-lg text-sm w-48 hidden" 
+                                            data-item-id="${item.id}">
+                                        <option value="">默认参数</option>
+                                    </select>
                                 </div>
                             </div>
                               <button class="trigger-btn px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all duration-200 text-sm" data-item-id="${item.id}">
@@ -81,6 +97,7 @@ class TestTrigger {
                                 关联构建
                             </button>
                             
+                            
                             <button class="associate-notification-btn px-3 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-all duration-200 text-sm" data-item-id="${item.id}">
                                 关联通知
                             </button>
@@ -88,7 +105,10 @@ class TestTrigger {
                         
                         <div class="flex items-center space-x-2">
                             ${window.app && window.app.isAdmin ? `
-                                <button class="delete-btn p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200" data-item-id="${item.id}">
+                                <button class="edit-description-btn p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-all duration-200" data-item-id="${item.id}" title="编辑描述">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="delete-btn p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200" data-item-id="${item.id}" title="删除">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             ` : ''}
@@ -125,6 +145,7 @@ class TestTrigger {
         container.innerHTML = html;
         this.attachEventListeners();
         this.loadVersionsForAllItems();
+        this.loadParameterSetsForAllItems();
     }
 
     static attachEventListeners() {
@@ -143,7 +164,37 @@ class TestTrigger {
             btn.addEventListener('click', (e) => {
                 const itemId = parseInt(e.currentTarget.dataset.itemId);
                 this.triggerTest(itemId);
-            });        });
+            });
+        });
+
+        // 参数显示点击切换
+        container.querySelectorAll('.parameter-display').forEach(display => {
+            display.addEventListener('click', (e) => {
+                const itemId = parseInt(e.currentTarget.dataset.itemId);
+                this.toggleParameterSelect(itemId);
+            });
+        });
+
+        // 参数集选择变化
+        container.querySelectorAll('.parameter-select').forEach(select => {
+            select.addEventListener('change', (e) => {
+                const itemId = parseInt(e.currentTarget.dataset.itemId);
+                const parameterSetId = e.target.value;
+                this.bindParameterSet(itemId, parameterSetId);
+            });
+            
+            // 点击外部时隐藏选择框
+            select.addEventListener('blur', (e) => {
+                setTimeout(() => {
+                    const itemId = parseInt(e.currentTarget.dataset.itemId);
+                    const display = document.querySelector(`.parameter-display[data-item-id="${itemId}"]`);
+                    if (display && !select.classList.contains('hidden')) {
+                        display.classList.remove('hidden');
+                        select.classList.add('hidden');
+                    }
+                }, 200);
+            });
+        });
 
         // 关联构建
         container.querySelectorAll('.associate-build-btn').forEach(btn => {
@@ -153,6 +204,7 @@ class TestTrigger {
             });
         });
 
+
         // 关联通知
         container.querySelectorAll('.associate-notification-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -160,6 +212,16 @@ class TestTrigger {
                 this.showAssociateNotificationDialog(itemId);
             });
         });
+
+        // 编辑描述
+        if (window.app && window.app.isAdmin) {
+            container.querySelectorAll('.edit-description-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const itemId = parseInt(e.currentTarget.dataset.itemId);
+                    this.showEditDescriptionDialog(itemId);
+                });
+            });
+        }
 
         // 删除测试项
         if (window.app && window.app.isAdmin) {
@@ -251,7 +313,138 @@ class TestTrigger {
         } catch (error) {
             console.error(`Failed to load versions for item ${itemId}:`, error);
         }
-    }    static toggleItemExpansion(itemId) {
+    }
+
+    static async loadParameterSetsForAllItems() {
+        try {
+            const response = await API.getParameterSets();
+            const parameterSets = response.data || [];
+            
+            // 为每个测试项加载参数集选项
+            for (const item of this.testItems) {
+                this.loadParameterSetsForItem(item.id, parameterSets);
+            }
+        } catch (error) {
+            console.error('Failed to load parameter sets:', error);
+        }
+    }
+
+    static loadParameterSetsForItem(itemId, parameterSets) {
+        const select = document.querySelector(`.parameter-select[data-item-id="${itemId}"]`);
+        const display = document.querySelector(`.parameter-display[data-item-id="${itemId}"] span`);
+        if (!select || !display) return;
+
+        const item = this.testItems.find(t => t.id === itemId);
+        if (!item) return;
+
+        // 清空现有选项但保留默认选项
+        select.innerHTML = '<option value="">默认参数</option>';
+        
+        let selectedParamName = '默认参数';
+        
+        // 添加参数集选项
+        parameterSets.forEach(paramSet => {
+            const option = document.createElement('option');
+            option.value = paramSet.id;
+            option.textContent = paramSet.name + (paramSet.description ? ` - ${paramSet.description}` : '');
+            if (paramSet.id === item.associated_parameter_set_id) {
+                option.selected = true;
+                selectedParamName = paramSet.name + (paramSet.description ? ` - ${paramSet.description}` : '');
+            }
+            select.appendChild(option);
+        });
+        
+        // 更新显示的参数名称
+        display.textContent = selectedParamName;
+        display.title = selectedParamName;
+    }
+
+    static toggleParameterSelect(itemId) {
+        const display = document.querySelector(`.parameter-display[data-item-id="${itemId}"]`);
+        const select = document.querySelector(`.parameter-select[data-item-id="${itemId}"]`);
+        
+        if (display && select) {
+            if (select.classList.contains('hidden')) {
+                display.classList.add('hidden');
+                select.classList.remove('hidden');
+                select.focus();
+            } else {
+                display.classList.remove('hidden');
+                select.classList.add('hidden');
+            }
+        }
+    }
+
+    static async bindParameterSet(itemId, parameterSetId) {
+        try {
+            const updateData = {
+                associated_parameter_set_id: parameterSetId ? parseInt(parameterSetId) : null
+            };
+            
+            await API.updateTestItem(itemId, updateData);
+            
+            // 更新本地数据
+            const itemIndex = this.testItems.findIndex(t => t.id === itemId);
+            if (itemIndex !== -1) {
+                this.testItems[itemIndex].associated_parameter_set_id = updateData.associated_parameter_set_id;
+            }
+            
+            // 更新显示
+            this.updateParameterDisplay(itemId, parameterSetId);
+            
+            // 隐藏选择框，显示文本
+            this.toggleParameterSelect(itemId);
+            
+            // 显示成功消息
+            if (window.app) {
+                window.app.showSuccess('参数集绑定成功');
+            } else {
+                console.log('参数集绑定成功');
+            }
+        } catch (error) {
+            console.error('Failed to bind parameter set:', error);
+            alert('绑定失败: ' + error.message);
+            
+            // 恢复选择状态
+            const select = document.querySelector(`.parameter-select[data-item-id="${itemId}"]`);
+            const item = this.testItems.find(t => t.id === itemId);
+            if (select && item) {
+                select.value = item.associated_parameter_set_id || '';
+            }
+        }
+    }
+
+    static async updateParameterDisplay(itemId, parameterSetId) {
+        const display = document.querySelector(`.parameter-display[data-item-id="${itemId}"] span`);
+        if (!display) return;
+        
+        if (!parameterSetId) {
+            display.textContent = '默认参数';
+            display.title = '默认参数';
+            return;
+        }
+        
+        try {
+            const response = await API.getParameterSets();
+            const parameterSets = response.data || [];
+            const selectedParam = parameterSets.find(p => p.id === parseInt(parameterSetId));
+            
+            if (selectedParam) {
+                const displayName = selectedParam.name + (selectedParam.description ? ` - ${selectedParam.description}` : '');
+                display.textContent = displayName;
+                display.title = displayName;
+            } else {
+                display.textContent = '默认参数';
+                display.title = '默认参数';
+            }
+        } catch (error) {
+            console.error('Failed to update parameter display:', error);
+            display.textContent = '默认参数';
+            display.title = '默认参数';
+        }
+    }
+
+    static toggleItemExpansion(itemId) {
         const historyDiv = document.querySelector(`.test-history[data-item-id="${itemId}"]`);
         const toggleIcon = document.querySelector(`.toggle-btn[data-item-id="${itemId}"] i`);
         
@@ -356,8 +549,9 @@ class TestTrigger {
             const baseUrl = 'http://192.168.1.199:8080/job/'; // This should match build info page base URL
             const buildPath = `${baseUrl}${build.job_name}/${build.build_number}`;
             
-            // Create full display text with build path
-            const fullDisplayText = `${build.job_name} #${build.build_number} - ${build.build_user} ${formattedTime} - 构建路径: ${buildPath}`;
+            // Create full display text with build path and package download URL
+            const packageDownloadUrl = build.package_path || 'N/A';
+            const fullDisplayText = `${build.job_name} #${build.build_number} - ${build.build_user} ${formattedTime} - 构建路径: ${buildPath} - 包下载地址: ${packageDownloadUrl}`;
             
             return `
                 <div class="version-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 ${isEven ? 'bg-gray-50' : 'bg-white'}" 
@@ -439,7 +633,11 @@ class TestTrigger {
             button.disabled = true;
             button.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>触发中...';
             
-            await API.triggerDeployTest(itemId, parseInt(buildInfoId));
+            // 获取选中的参数集ID
+            const paramSelect = document.querySelector(`.parameter-select[data-item-id="${itemId}"]`);
+            const parameterSetId = paramSelect && paramSelect.value ? parseInt(paramSelect.value) : null;
+            
+            await API.triggerDeployTest(itemId, parseInt(buildInfoId), parameterSetId);
             
             alert('测试已触发，请查看执行历史');
             
@@ -464,6 +662,10 @@ class TestTrigger {
             return;
         }
 
+        // 获取参数集选择
+        const paramSelect = document.querySelector(`.parameter-select[data-item-id="${itemId}"]`);
+        const parameterSetId = paramSelect && paramSelect.value ? parseInt(paramSelect.value) : null;
+
         if (!confirm('确定要触发部署测试吗？这会下载包文件并执行完整的部署测试流程。')) {
             return;
         }
@@ -475,7 +677,7 @@ class TestTrigger {
             button.disabled = true;
             button.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>部署中...';
             
-            await API.triggerDeployTest(itemId, parseInt(buildInfoId));
+            await API.triggerDeployTest(itemId, parseInt(buildInfoId), parameterSetId);
             
             alert('部署测试已触发，请查看执行历史');
             
@@ -490,6 +692,7 @@ class TestTrigger {
             button.innerHTML = originalText;
         }
     }
+
 
     static async showAssociateBuildDialog(itemId) {
         const item = this.testItems.find(t => t.id === itemId);
@@ -575,6 +778,7 @@ class TestTrigger {
         }
     }
 
+
     static showAssociateNotificationDialog(itemId) {
         const item = this.testItems.find(t => t.id === itemId);
         const enabled = confirm(`当前通知状态: ${item.notification_enabled ? '已启用' : '已禁用'}\n\n是否要切换通知状态?`);
@@ -582,6 +786,97 @@ class TestTrigger {
         if (enabled !== null) {
             this.updateTestItem(itemId, { notification_enabled: !item.notification_enabled });
         }
+    }
+
+    static showEditDescriptionDialog(itemId) {
+        const item = this.testItems.find(t => t.id === itemId);
+        if (!item) return;
+
+        const modalHtml = `
+            <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" id="edit-description-modal">
+                <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-bold">编辑描述</h3>
+                        <button class="close-modal text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">测试项名称</label>
+                        <div class="text-sm text-gray-900 bg-gray-50 p-2 rounded-lg">${item.name}</div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">描述</label>
+                        <textarea class="description-input w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" 
+                                  rows="3" 
+                                  placeholder="请输入测试项描述...">${item.description || ''}</textarea>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3">
+                        <button class="cancel-btn px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
+                            取消
+                        </button>
+                        <button class="confirm-btn px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                            保存
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        const modal = document.getElementById('edit-description-modal');
+        const descriptionInput = modal.querySelector('.description-input');
+        const confirmBtn = modal.querySelector('.confirm-btn');
+        const cancelBtn = modal.querySelector('.cancel-btn');
+        const closeBtn = modal.querySelector('.close-modal');
+        
+        // 聚焦到输入框并选中文本
+        descriptionInput.focus();
+        descriptionInput.select();
+        
+        // 关闭模态框
+        const closeModal = () => {
+            modal.remove();
+        };
+        
+        closeBtn.addEventListener('click', closeModal);
+        cancelBtn.addEventListener('click', closeModal);
+        
+        // 按ESC键关闭
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+                document.removeEventListener('keydown', handleKeyDown);
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        
+        // 确认保存
+        confirmBtn.addEventListener('click', async () => {
+            const newDescription = descriptionInput.value.trim();
+            
+            try {
+                confirmBtn.disabled = true;
+                confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>保存中...';
+                
+                await this.updateTestItem(itemId, { description: newDescription });
+                closeModal();
+                
+                if (window.app) {
+                    window.app.showSuccess('描述已更新');
+                }
+            } catch (error) {
+                alert('保存失败: ' + error.message);
+            } finally {
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = '保存';
+                document.removeEventListener('keydown', handleKeyDown);
+            }
+        });
     }
 
     static async updateTestItem(itemId, updates) {

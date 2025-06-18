@@ -14,6 +14,10 @@ type DeployTestRun struct {
 	BuildInfo   *BuildInfo `gorm:"foreignKey:BuildInfoID" json:"build_info,omitempty"`
 	TriggeredBy string     `gorm:"not null" json:"triggered_by"`
 
+	// 参数集关联
+	ParameterSetID *uint         `gorm:"index" json:"parameter_set_id"`
+	ParameterSet   *ParameterSet `gorm:"foreignKey:ParameterSetID" json:"parameter_set,omitempty"`
+
 	// 状态字段
 	Status string `gorm:"default:PENDING;index" json:"status"` // PENDING, DOWNLOADING, DOWNLOADED, DEPLOYING, TESTING, MONITORING, COMPLETED, FAILED
 
@@ -27,6 +31,9 @@ type DeployTestRun struct {
 
 	// 步骤详情 - JSON格式存储各个步骤的详细信息
 	Steps json.RawMessage `gorm:"type:jsonb" json:"steps,omitempty"`
+
+	// 响应原始数据 - 存储完成时的完整响应
+	ResponseRawData json.RawMessage `gorm:"type:jsonb" json:"response_raw_data,omitempty"`
 
 	// 配置信息
 	MaxQueryHours int `gorm:"default:3" json:"max_query_hours"` // 最大查询时间（小时）
