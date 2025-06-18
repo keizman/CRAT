@@ -425,3 +425,27 @@ split routers (all of endpoints )from main.go to router/api-router.go
 
 ----
 
+preview功能改版， 通过在 report后拼接widgets/summary.json 可以获取到 summary 数据你需要做的时按照图中 的样式展示出来，  -- curl -v http://192.168.1.118:59996/cds_5329/widgets/summary.json
+*   Trying 192.168.1.118:59996...
+* Connected to 192.168.1.118 (192.168.1.118) port 59996
+* using HTTP/1.x
+> GET /cds_5329/widgets/summary.json HTTP/1.1
+> Host: 192.168.1.118:59996
+> User-Agent: curl/8.13.0
+> Accept: */*
+>
+< HTTP/1.1 200 OK
+< Server: nginx/1.24.0 (Ubuntu)
+< Date: Wed, 18 Jun 2025 07:36:17 GMT
+< Content-Type: application/json
+< Content-Length: 254
+< Last-Modified: Wed, 28 May 2025 03:28:07 GMT
+< Connection: keep-alive
+< ETag: "683682c7-fe"
+< Access-Control-Allow-Origin: *
+< Access-Control-Allow-Methods: GET, POST, OPTIONS
+< Access-Control-Allow-Headers: DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range
+< Access-Control-Expose-Headers: Content-Length,Content-Range
+< Accept-Ranges: bytes
+<
+{"reportName":"Allure Report","testRuns":[],"statistic":{"failed":1,"broken":0,"skipped":6,"passed":43,"unknown":0,"total":50},"time":{"start":1748400822908,"stop":1748401563095,"duration":740187,"minDuration":0,"maxDuration":83678,"sumDuration":508321}}

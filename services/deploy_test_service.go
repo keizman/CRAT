@@ -215,9 +215,10 @@ func (s *DeployTestService) findPackageFile(dirURL, testItemName string) (string
 		selectedFile = candidates[0]
 	}
 
-	// 验证文件是否以.tar.gz结尾
-	if !strings.HasSuffix(strings.ToLower(selectedFile), ".tar.gz") {
-		return "", fmt.Errorf("selected file is not a tar.gz file: %s", selectedFile)
+	// 验证文件是否以.tar.gz或.tgz结尾
+	selectedFileLower := strings.ToLower(selectedFile)
+	if !strings.HasSuffix(selectedFileLower, ".tar.gz") && !strings.HasSuffix(selectedFileLower, ".tgz") {
+		return "", fmt.Errorf("selected file is not a tar.gz or tgz file: %s", selectedFile)
 	}
 
 	return selectedFile, nil

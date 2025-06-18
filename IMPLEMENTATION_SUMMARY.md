@@ -47,7 +47,7 @@ This implementation enhances the CRAT platform's test triggering functionality w
 - **services/deploy_test_service.go**:
   - Updated `TriggerDeployTest()` to accept parameter set ID
   - Enhanced `getTestParameters()` function with parameter resolution priority: 1) Specified parameter set 2) Associated parameter set 3) Default parameter set
-  - Enhanced `findPackageFile()` with improved filtering logic (supports "release" preference and tar.gz validation)
+  - Enhanced `findPackageFile()` with improved filtering logic (supports "release" preference and tar.gz/tgz validation)
   - Modified `triggerExternalTest()` to use new API endpoint `/api/deploy_and_test_mock`
   - Updated `monitorTestProgress()` to store response_raw_data and extract report_url from `result.test.report_url`
 
@@ -124,7 +124,7 @@ This implementation enhances the CRAT platform's test triggering functionality w
 ### 3. Improved Package Resolution
 - **Smart Filtering**: Finds packages containing test item name
 - **Release Preference**: Prioritizes files containing "release" in filename
-- **Validation**: Ensures selected files end with .tar.gz
+- **Validation**: Ensures selected files end with .tar.gz or .tgz
 - **Error Handling**: Clear error messages for missing or invalid packages
 
 ### 4. Response Data Tracking
