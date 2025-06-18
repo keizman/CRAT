@@ -456,15 +456,14 @@ func (s *DeployTestService) sendNotification(deployTestRun *models.DeployTestRun
 		return
 	}
 
-	buildInfoStr := fmt.Sprintf("%s #%d", buildInfo.JobName, buildInfo.BuildNumber)
-
 	if deployTestRun.Status == models.DeployTestStatusCompleted {
-		if err := s.notificationService.SendTestSuccessNotification(deployTestRun.TriggeredBy, testItem.Name, buildInfoStr, deployTestRun.ReportURL); err != nil {
+		if err := s.notificationService.SendTestSuccessNotification(deployTestRun.TriggeredBy, testItem.Name, buildInfo, deployTestRun.ReportURL); err != nil {
 			s.addStep(deployTestRun.ID, models.StepNotify, "FAILED", "", fmt.Sprintf("Failed to send success notification: %v", err))
 		} else {
 			s.addStep(deployTestRun.ID, models.StepNotify, "COMPLETED", "Success notification sent", "")
 		}
 	} else {
+		buildInfoStr := fmt.Sprintf("%s #%d", buildInfo.JobName, buildInfo.BuildNumber)
 		if err := s.notificationService.SendTestFailureNotification(deployTestRun.TriggeredBy, testItem.Name, buildInfoStr, deployTestRun.ErrorMessage); err != nil {
 			s.addStep(deployTestRun.ID, models.StepNotify, "FAILED", "", fmt.Sprintf("Failed to send failure notification: %v", err))
 		} else {

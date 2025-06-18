@@ -449,3 +449,9 @@ preview功能改版， 通过在 report后拼接widgets/summary.json 可以获�
 < Accept-Ranges: bytes
 <
 {"reportName":"Allure Report","testRuns":[],"statistic":{"failed":1,"broken":0,"skipped":6,"passed":43,"unknown":0,"total":50},"time":{"start":1748400822908,"stop":1748401563095,"duration":740187,"minDuration":0,"maxDuration":83678,"sumDuration":508321}}
+
+
+-------
+
+ 修改 SendTestSuccessNotification 的 报告 message， @notification_service.go  1.构建信息 填写 构建路径
+http://192.168.1.199:8080/job/CDN_SsgAgent/77。 2.执行时间: 获取当前时间。 查看测试报告 文字改为查看完整测试报告， 3增加刚刚 的 preview 按钮的数据到这里， （如果时 complete 状态。 ） 4.本邮件由 CRAT 自动化测试平台自动发送，请勿回复。- 改为从 设置获取 项目名称。获取不到再使用这个默认的

@@ -1178,6 +1178,246 @@ class TestTrigger {
         }
     }
 
+    static generateMultiColorPieChart(statistic) {
+        const { passed, failed, broken, skipped, unknown, total } = statistic;
+        
+        if (total === 0) {
+            return `<svg class="w-40 h-40" viewBox="0 0 42 42">
+                <circle cx="21" cy="21" r="15.5" fill="transparent" stroke="#e5e7eb" stroke-width="3"/>
+                <text x="21" y="21" text-anchor="middle" dy="0.3em" class="text-sm fill-gray-500">无数据</text>
+            </svg>`;
+        }
+        
+        // 计算各部分的角度
+        const passedAngle = (passed / total) * 360;
+        const failedAngle = (failed / total) * 360;
+        const brokenAngle = (broken / total) * 360;
+        const skippedAngle = (skipped / total) * 360;
+        const unknownAngle = (unknown / total) * 360;
+        
+        // 累积角度
+        let currentAngle = 0;
+        const segments = [];
+        
+        // 添加各个分段
+        if (passed > 0) {
+            segments.push({
+                startAngle: currentAngle,
+                endAngle: currentAngle + passedAngle,
+                color: '#10b981' // green-500
+            });
+            currentAngle += passedAngle;
+        }
+        
+        if (failed > 0) {
+            segments.push({
+                startAngle: currentAngle,
+                endAngle: currentAngle + failedAngle,
+                color: '#ef4444' // red-500
+            });
+            currentAngle += failedAngle;
+        }
+        
+        if (broken > 0) {
+            segments.push({
+                startAngle: currentAngle,
+                endAngle: currentAngle + brokenAngle,
+                color: '#f97316' // orange-500
+            });
+            currentAngle += brokenAngle;
+        }
+        
+        if (skipped > 0) {
+            segments.push({
+                startAngle: currentAngle,
+                endAngle: currentAngle + skippedAngle,
+                color: '#eab308' // yellow-500
+            });
+            currentAngle += skippedAngle;
+        }
+        
+        if (unknown > 0) {
+            segments.push({
+                startAngle: currentAngle,
+                endAngle: currentAngle + unknownAngle,
+                color: '#6b7280' // gray-500
+            });
+        }
+        
+        // 生成SVG路径
+        const radius = 15.5;
+        const centerX = 21;
+        const centerY = 21;
+        
+        const pathData = segments.map(segment => {
+            const startAngleRad = (segment.startAngle - 90) * Math.PI / 180;
+            const endAngleRad = (segment.endAngle - 90) * Math.PI / 180;
+            
+            const x1 = centerX + radius * Math.cos(startAngleRad);
+            const y1 = centerY + radius * Math.sin(startAngleRad);
+            const x2 = centerX + radius * Math.cos(endAngleRad);
+            const y2 = centerY + radius * Math.sin(endAngleRad);
+            
+            const largeArcFlag = segment.endAngle - segment.startAngle > 180 ? 1 : 0;
+            
+            return `
+                <path d="M ${centerX} ${centerY} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2} Z"
+                      fill="${segment.color}" stroke="white" stroke-width="1"/>
+            `;
+        }).join('');
+        
+        return `
+            <svg class="w-40 h-40" viewBox="0 0 42 42">
+                ${pathData}
+            </svg>
+        `;
+    }
+
+    static generateSummaryHTML(summaryData) {
+        const { reportName, statistic, time } = summaryData;
+        
+        // 计算测试通过率
+        const passRate = statistic.total > 0 ? ((statistic.passed / statistic.total) * 100).toFixed(1) : 0;
+        
+        // 格式化时间
+        const formatDuration = (ms) => {
+            if (ms < 1000) return `${ms}ms`;
+            if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+            if (ms < 3600000) return `${(ms / 60000).toFixed(1)}m`;
+            return `${(ms / 3600000).toFixed(1)}h`;
+        };
+
+        const startTime = new Date(time.start).toLocaleString('zh-CN');
+        const stopTime = new Date(time.stop).toLocaleString('zh-CN');
+        const duration = formatDuration(time.duration);
+
+        return `
+            <div class="space-y-6">
+                <!-- 报告标题 -->
+                <div class="text-center border-b pb-4">
+                    <h2 class="text-2xl font-bold text-gray-800">${reportName}</h2>
+                </div>
+
+                <!-- 总体统计圆环图和关键指标 -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- 圆环图区域 -->
+                    <div class="flex flex-col items-center justify-center bg-gray-50 rounded-lg p-6">
+                        <div class="relative w-40 h-40 mb-4">
+                            ${this.generateMultiColorPieChart(statistic)}
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <div class="text-center">
+                                    <div class="text-2xl font-bold text-gray-800">${passRate}%</div>
+                                    <div class="text-xs text-gray-600">通过率</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-lg font-semibold text-gray-800">${statistic.total}</div>
+                            <div class="text-sm text-gray-600">总测试数</div>
+                        </div>
+                        <!-- 图例 -->
+                        <div class="flex flex-wrap justify-center gap-4 mt-4 text-xs">
+                            <div class="flex items-center">
+                                <div class="w-3 h-3 bg-green-500 rounded-full mr-1"></div>
+                                <span>通过 (${statistic.passed})</span>
+                            </div>
+                            <div class="flex items-center">
+                                <div class="w-3 h-3 bg-red-500 rounded-full mr-1"></div>
+                                <span>失败 (${statistic.failed})</span>
+                            </div>
+                            <div class="flex items-center">
+                                <div class="w-3 h-3 bg-orange-500 rounded-full mr-1"></div>
+                                <span>中断 (${statistic.broken})</span>
+                            </div>
+                            <div class="flex items-center">
+                                <div class="w-3 h-3 bg-yellow-500 rounded-full mr-1"></div>
+                                <span>跳过 (${statistic.skipped})</span>
+                            </div>
+                            ${statistic.unknown > 0 ? `
+                            <div class="flex items-center">
+                                <div class="w-3 h-3 bg-gray-500 rounded-full mr-1"></div>
+                                <span>未知 (${statistic.unknown})</span>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+
+                    <!-- 详细统计 -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-green-600">${statistic.passed}</div>
+                            <div class="text-sm text-green-700 flex items-center justify-center mt-1">
+                                <i class="fas fa-check-circle mr-1"></i>通过
+                            </div>
+                        </div>
+                        <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-red-600">${statistic.failed}</div>
+                            <div class="text-sm text-red-700 flex items-center justify-center mt-1">
+                                <i class="fas fa-times-circle mr-1"></i>失败
+                            </div>
+                        </div>
+                        <div class="bg-orange-50 border border-orange-200 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-orange-600">${statistic.broken}</div>
+                            <div class="text-sm text-orange-700 flex items-center justify-center mt-1">
+                                <i class="fas fa-exclamation-triangle mr-1"></i>中断
+                            </div>
+                        </div>
+                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-yellow-600">${statistic.skipped}</div>
+                            <div class="text-sm text-yellow-700 flex items-center justify-center mt-1">
+                                <i class="fas fa-forward mr-1"></i>跳过
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 执行时间信息 -->
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h3 class="font-semibold text-blue-800 mb-3 flex items-center">
+                        <i class="fas fa-clock mr-2"></i>执行时间信息
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                        <div>
+                            <span class="text-blue-700 font-medium">开始时间:</span>
+                            <div class="text-blue-900">${startTime}</div>
+                        </div>
+                        <div>
+                            <span class="text-blue-700 font-medium">结束时间:</span>
+                            <div class="text-blue-900">${stopTime}</div>
+                        </div>
+                        <div>
+                            <span class="text-blue-700 font-medium">总耗时:</span>
+                            <div class="text-blue-900">${duration}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 性能指标 -->
+                ${time.minDuration !== undefined ? `
+                <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                    <h3 class="font-semibold text-purple-800 mb-3 flex items-center">
+                        <i class="fas fa-tachometer-alt mr-2"></i>性能指标
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                        <div>
+                            <span class="text-purple-700 font-medium">最短耗时:</span>
+                            <div class="text-purple-900">${formatDuration(time.minDuration)}</div>
+                        </div>
+                        <div>
+                            <span class="text-purple-700 font-medium">最长耗时:</span>
+                            <div class="text-purple-900">${formatDuration(time.maxDuration)}</div>
+                        </div>
+                        <div>
+                            <span class="text-purple-700 font-medium">累计耗时:</span>
+                            <div class="text-purple-900">${formatDuration(time.sumDuration)}</div>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
     static async showReportPreview(reportUrl) {
         try {
             // 显示加载中的模态框
@@ -1200,27 +1440,19 @@ class TestTrigger {
 
             document.body.insertAdjacentHTML('beforeend', loadingModalHtml);
 
-            // 获取报告内容
-            const response = await fetch(reportUrl);
+            // 构建summary.json的URL
+            const summaryUrl = reportUrl.endsWith('/') ? reportUrl + 'widgets/summary.json' : reportUrl + '/widgets/summary.json';
+            
+            // 获取summary数据
+            const response = await fetch(summaryUrl);
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
-            const htmlContent = await response.text();
+            const summaryData = await response.json();
             
-            // 创建一个临时DOM来解析HTML
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(htmlContent, 'text/html');
-            
-            // 查找data-id="summary"的元素
-            const summaryElement = doc.querySelector('[data-id="summary"]');
-            
-            let summaryContent = '';
-            if (summaryElement) {
-                summaryContent = summaryElement.outerHTML;
-            } else {
-                summaryContent = '<div class="text-yellow-600 bg-yellow-50 p-4 rounded-lg"><i class="fas fa-exclamation-triangle mr-2"></i>未找到summary部分，可能报告格式已更新</div>';
-            }
+            // 生成统计数据的HTML
+            const summaryContent = this.generateSummaryHTML(summaryData);
 
             // 更新模态框内容
             const modal = document.getElementById('report-preview-modal');
