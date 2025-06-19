@@ -40,11 +40,12 @@ func (a *AuthController) Login(c *gin.Context) {
 	isAdmin := false
 	if req.Email == "admin" && req.Password == config.AppConfig.Auth.AdminPassword {
 		isAdmin = true
-	} else if req.Password != "" {
-		// 如果提供了密码但不是管理员密码，则认证失败
+	} else if req.Email == "admin" && req.Password != config.AppConfig.Auth.AdminPassword {
+		// 如果是admin用户但密码错误，则认证失败
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
+	// 对于普通用户，允许输入任意密码，不进行密码校验
 
 	// 对于非admin用户，验证邮箱格式
 	if !isAdmin && req.Email != "admin" {
