@@ -1,3 +1,4 @@
 - Do not execute psql-like commands, I will manually execute SQL files. You just need to generate them and notify me.
 - Do not run `npm run build`, you are in WSL and the project is in Windows. Notify me to manually do it.
 - Check my grammar. If there are any English spelling errors, automatically fix them.
+- auto put my prompt to all_prompt.md file, append to the last line. no Need read 。 only my prompt。 not you doing for somthing

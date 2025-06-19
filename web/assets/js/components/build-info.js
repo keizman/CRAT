@@ -5,6 +5,8 @@ import { Settings } from './settings.js';
 class BuildInfo {
     static jobNames = [];
     static buildInfoMap = new Map();
+    static selectedVersion = null; // Global selected version
+    static lastSyncTime = null; // Last sync time for 24h sync logic
 
     static async loadJobNames() {
         try {
@@ -54,6 +56,9 @@ class BuildInfo {
             });
 
             this.renderBuildInfoList();
+
+            // Initialize selected version with latest build if needed
+            this.initializeSelectedVersion();
         } catch (error) {
             console.error('Failed to load build info list:', error);
             const container = document.getElementById('buildInfoList');
@@ -64,6 +69,111 @@ class BuildInfo {
                 </div>
             `;
         }
+    }
+
+    static initializeSelectedVersion() {
+        // Check if we need to sync (24h logic)
+        const now = Date.now();
+        const lastSync = localStorage.getItem('crat_last_version_sync');
+        const shouldSync = !lastSync || (now - parseInt(lastSync)) > 24 * 60 * 60 * 1000;
+
+        if (shouldSync || !this.selectedVersion) {
+            // Find the latest build across all jobs ordered by create_time
+            let latestBuild = null;
+            let latestTime = 0;
+
+            for (const [jobName, builds] of this.buildInfoMap) {
+                if (builds.length > 0) {
+                    const buildTime = new Date(builds[0].created_at).getTime();
+                    if (buildTime > latestTime) {
+                        latestTime = buildTime;
+                        latestBuild = builds[0];
+                    }
+                }
+            }
+
+            if (latestBuild && shouldSync) {
+                this.selectedVersion = latestBuild;
+                localStorage.setItem('crat_selected_version', JSON.stringify(latestBuild));
+                localStorage.setItem('crat_last_version_sync', now.toString());
+                console.log('Auto-selected latest build:', latestBuild.job_name, '#' + latestBuild.build_number);
+
+                // Notify test trigger component about the global version change
+                if (window.TestTrigger) {
+                    window.TestTrigger.onGlobalVersionChanged(latestBuild);
+                }
+            } else if (!this.selectedVersion) {
+                // Load from localStorage if available
+                const stored = localStorage.getItem('crat_selected_version');
+                if (stored) {
+                    try {
+                        this.selectedVersion = JSON.parse(stored);
+                        // Notify test trigger component
+                        if (window.TestTrigger) {
+                            window.TestTrigger.onGlobalVersionChanged(this.selectedVersion);
+                        }
+                    } catch (e) {
+                        this.selectedVersion = latestBuild;
+                        if (latestBuild && window.TestTrigger) {
+                            window.TestTrigger.onGlobalVersionChanged(latestBuild);
+                        }
+                    }
+                } else {
+                    this.selectedVersion = latestBuild;
+                    if (latestBuild && window.TestTrigger) {
+                        window.TestTrigger.onGlobalVersionChanged(latestBuild);
+                    }
+                }
+            }
+        } else {
+            // Load from localStorage
+            const stored = localStorage.getItem('crat_selected_version');
+            if (stored) {
+                try {
+                    this.selectedVersion = JSON.parse(stored);
+                    // Notify test trigger component
+                    if (window.TestTrigger) {
+                        window.TestTrigger.onGlobalVersionChanged(this.selectedVersion);
+                    }
+                } catch (e) {
+                    console.error('Failed to parse stored version:', e);
+                }
+            }
+        }
+    }
+
+    static selectVersion(build) {
+        this.selectedVersion = build;
+        localStorage.setItem('crat_selected_version', JSON.stringify(build));
+
+        // Update UI to reflect selection
+        this.updateSelectionDisplay();
+
+        // Notify test trigger component about the version change
+        if (window.TestTrigger) {
+            window.TestTrigger.onGlobalVersionChanged(build);
+        }
+
+        // Show success message
+        if (window.app && window.app.showSuccess) {
+            window.app.showSuccess(`已选择版本: ${build.job_name} #${build.build_number}`);
+        } else {
+            alert(`已选择版本: ${build.job_name} #${build.build_number}`);
+        }
+    }
+
+    static updateSelectionDisplay() {
+        // Update selection indicators on all build cards
+        document.querySelectorAll('.select-version-btn').forEach(btn => {
+            const buildId = parseInt(btn.dataset.buildId);
+            if (this.selectedVersion && buildId === this.selectedVersion.id) {
+                btn.innerHTML = '<i class="fas fa-check mr-1"></i>已选择';
+                btn.className = btn.className.replace('bg-blue-500 hover:bg-blue-600', 'bg-green-500 hover:bg-green-600');
+            } else {
+                btn.innerHTML = '<i class="fas fa-mouse-pointer mr-1"></i>选择版本';
+                btn.className = btn.className.replace('bg-green-500 hover:bg-green-600', 'bg-blue-500 hover:bg-blue-600');
+            }
+        });
     }
 
     static renderBuildInfoList() {
@@ -91,19 +201,28 @@ class BuildInfo {
                 const buildPath = this.generateBuildPath(build);
                 const downloadPath = this.generateDownloadPath(build);
                 
+                const isSelected = this.selectedVersion && this.selectedVersion.id === build.id;
+                
                 return `
-                    <div class="bg-gray-50 rounded-lg p-4 border-l-4 border-blue-400">
+                    <div class="bg-gray-50 rounded-lg p-4 border-l-4 border-blue-400 relative">
                         <div class="space-y-3">
-                            <!-- 基本信息标签行 -->
-                            <div class="flex flex-wrap gap-2">
-                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                    <i class="fas fa-calendar-alt mr-1"></i>
-                                    ${buildDate}
-                                </span>
-                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                    <i class="fas fa-user mr-1"></i>
-                                    ${build.build_user}
-                                </span>
+                            <!-- 版本选择按钮和基本信息行 -->
+                            <div class="flex items-start justify-between">
+                                <div class="flex flex-wrap gap-2">
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        <i class="fas fa-calendar-alt mr-1"></i>
+                                        ${buildDate}
+                                    </span>
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        <i class="fas fa-user mr-1"></i>
+                                        ${build.build_user}
+                                    </span>
+                                </div>
+                                <button class="select-version-btn px-3 py-1 text-xs font-medium text-white rounded-lg transition-all duration-200 ${isSelected ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-500 hover:bg-blue-600'}" 
+                                        data-build-id="${build.id}"
+                                        data-build-data='${JSON.stringify(build).replace(/'/g, "&#39;")}'>
+                                    <i class="fas ${isSelected ? 'fa-check' : 'fa-mouse-pointer'} mr-1"></i>${isSelected ? '已选择' : '选择版本'}
+                                </button>
                             </div>
                             
                             <!-- 链接信息块 -->
@@ -212,6 +331,19 @@ class BuildInfo {
                 e.preventDefault();
                 const jobName = e.currentTarget.dataset.job;
                 this.deleteJobName(jobName);
+            });
+        });
+
+        // 添加版本选择按钮事件监听器
+        container.querySelectorAll('.select-version-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                try {
+                    const buildData = JSON.parse(e.currentTarget.dataset.buildData.replace(/&#39;/g, "'"));
+                    this.selectVersion(buildData);
+                } catch (error) {
+                    console.error('Failed to parse build data:', error);
+                }
             });
         });
     }

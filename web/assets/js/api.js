@@ -132,7 +132,9 @@ export class API {
 
     static async deleteTestItem(id) {
         return this.delete(`/test-items/${id}`);
-    }    static async triggerTest(testItemId, buildInfoId, parameterSetId = null) {
+    }
+
+    static async triggerTest(testItemId, buildInfoId, parameterSetId = null) {
         const payload = { build_info_id: buildInfoId };
         if (parameterSetId) {
             payload.parameter_set_id = parameterSetId;

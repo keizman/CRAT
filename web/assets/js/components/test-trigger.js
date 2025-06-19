@@ -1,9 +1,11 @@
 import { API } from '../api.js';
+import { BuildInfo } from './build-info.js';
 
 // 测试触发组件
 class TestTrigger {
     static testItems = [];
     static expandedItems = new Set();
+    static currentGlobalVersion = null; // Current globally selected version from BuildInfo
 
     static async loadTestItems() {
         try {
@@ -14,6 +16,14 @@ class TestTrigger {
             console.error('Failed to load test items:', error);
             this.renderError('加载测试项失败');
         }
+    }
+
+    // Handler for global version changes from BuildInfo
+    static onGlobalVersionChanged(version) {
+        this.currentGlobalVersion = version;
+        console.log('Global version changed to:', version ? `${version.job_name} #${version.build_number}` : 'null');
+        // Re-render to show only associated items and update UI
+        this.renderTestItems();
     }
 
     static async createTestItem(name) {
@@ -29,7 +39,7 @@ class TestTrigger {
 
     static renderTestItems() {
         const container = document.getElementById('testItemList');
-        
+
         if (this.testItems.length === 0) {
             container.innerHTML = `
                 <div class="text-center py-12">
@@ -48,39 +58,82 @@ class TestTrigger {
         const html = this.testItems.map(item => {
             const isExpanded = this.expandedItems.has(item.id);
             
+            // Generate version info based on global version and item association
+            let versionInfoHtml = '';
+            let canTrigger = false;
+            
+            if (this.currentGlobalVersion) {
+                const buildTime = new Date(this.currentGlobalVersion.created_at);
+                const year = buildTime.getFullYear();
+                const month = String(buildTime.getMonth() + 1).padStart(2, '0');
+                const day = String(buildTime.getDate()).padStart(2, '0');
+                const hours = String(buildTime.getHours()).padStart(2, '0');
+                const minutes = String(buildTime.getMinutes()).padStart(2, '0');
+                const formattedTime = `${year}${month}${day}-${hours}:${minutes}`;
+                
+                // Check if item is associated with current version or has no association
+                const isAssociated = !item.associated_job_name || item.associated_job_name === this.currentGlobalVersion.job_name;
+                canTrigger = isAssociated;
+                
+                if (isAssociated) {
+                    versionInfoHtml = `
+                        <div class="mt-2 text-xs text-gray-600 bg-blue-50 px-3 py-1 rounded border border-blue-100">
+                            <i class="fas fa-check-circle mr-1 text-green-500"></i>
+                            当前测试版本: ${this.currentGlobalVersion.job_name} #${this.currentGlobalVersion.build_number} - ${this.currentGlobalVersion.build_user} ${formattedTime}
+                            ${this.currentGlobalVersion.package_path ? ` - ${this.currentGlobalVersion.package_path}` : ''}
+                        </div>
+                    `;
+                } else {
+                    versionInfoHtml = `
+                        <div class="mt-2 text-xs text-gray-600 bg-yellow-50 px-3 py-1 rounded border border-yellow-100">
+                            <i class="fas fa-exclamation-triangle mr-1 text-yellow-500"></i>
+                            此测试项关联到: ${item.associated_job_name}, 当前版本: ${this.currentGlobalVersion.job_name} #${this.currentGlobalVersion.build_number}
+                        </div>
+                    `;
+                }
+            } else {
+                versionInfoHtml = `
+                    <div class="mt-2 text-xs text-gray-500 bg-gray-50 px-3 py-1 rounded border border-gray-100">
+                        <i class="fas fa-info-circle mr-1 text-gray-500"></i>
+                        请先在构建信息页面选择一个版本
+                    </div>
+                `;
+            }
+            
             return `
                 <div class="bento-card rounded-2xl p-6">
-                    <div class="flex items-start justify-between">
-                        <div class="flex items-start space-x-4 flex-1">
+                    <div class="space-y-4">
+                        <!-- 测试项头部信息 -->
+                        <div class="flex items-start justify-between">
                             <div class="flex items-center space-x-3">
                                 <button class="toggle-btn p-2 rounded-lg hover:bg-gray-100" data-item-id="${item.id}">
                                     <i class="fas fa-chevron-right transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}"></i>
                                 </button>
-                                <div class="min-w-0 flex-shrink-0" style="max-width: 200px;">
-                                    <h3 class="text-lg font-bold text-gray-800">${item.name}</h3>
-                                    ${item.description ? `<p class="text-sm text-gray-600 mt-1 truncate" title="${item.description}">${item.description}</p>` : ''}
+                                <div>
+                                    <h3 class="text-xl font-bold text-gray-800">${item.name}</h3>
+                                    ${item.description ? `<p class="text-sm text-gray-600 mt-1">${item.description}</p>` : ''}
                                 </div>
                             </div>
                             
-                            <div class="flex items-center space-x-4 flex-1">
+                            <div class="flex items-center space-x-2">
+                                ${window.app && window.app.isAdmin ? `
+                                    <button class="edit-description-btn p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-all duration-200" data-item-id="${item.id}" title="编辑描述">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="delete-btn p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200" data-item-id="${item.id}" title="删除">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                        
+                        <!-- 参数和触发按钮区域 -->
+                        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-3 sm:space-y-0 sm:space-x-4 bg-gray-50 rounded-lg p-4">
+                            <div class="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-6">
                                 <div class="flex items-center space-x-2">
-                                    <span class="text-sm text-gray-500">Version:</span>
-                                    <div class="relative">
-                                        <input type="text" 
-                                               class="version-search px-3 py-1 border border-gray-200 rounded-lg text-sm w-64" 
-                                               data-item-id="${item.id}"
-                                               placeholder="搜索或选择版本..."
-                                               autocomplete="off">
-                                        <div class="version-dropdown absolute top-full left-0 min-w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden z-50 whitespace-nowrap" 
-                                             data-item-id="${item.id}">
-                                        </div>
-                                        <input type="hidden" class="version-value" data-item-id="${item.id}" value="">
-                                    </div>
-                                </div>
-                                
-                                <div class="flex items-center space-x-2">
-                                    <span class="text-sm text-gray-500">Params:</span>
-                                    <div class="parameter-display text-sm text-gray-800 min-w-0 cursor-pointer hover:bg-gray-50 px-2 py-1 rounded border border-transparent hover:border-gray-200 transition-colors" data-item-id="${item.id}" style="max-width: 200px;">
+                                    <i class="fas fa-cogs text-gray-500"></i>
+                                    <span class="text-sm font-medium text-gray-500">参数配置:</span>
+                                    <div class="parameter-display text-sm text-gray-800 min-w-0 cursor-pointer hover:bg-gray-100 px-3 py-1 rounded border border-transparent hover:border-gray-300 transition-colors" data-item-id="${item.id}">
                                         <span class="truncate block" title="默认参数">默认参数</span>
                                     </div>
                                     <select class="parameter-select px-3 py-1 border border-gray-200 rounded-lg text-sm w-48 hidden" 
@@ -89,52 +142,45 @@ class TestTrigger {
                                     </select>
                                 </div>
                             </div>
-                              <button class="trigger-btn px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all duration-200 text-sm" data-item-id="${item.id}">
-                                <i class="fas fa-play mr-1"></i>触发测试
-                            </button>
                             
-                            <button class="associate-build-btn px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-200 text-sm" data-item-id="${item.id}">
-                                关联构建
-                            </button>
-                            
-                            
-                            <button class="associate-notification-btn px-3 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-all duration-200 text-sm" data-item-id="${item.id}">
-                                关联通知
-                            </button>
-                        </div>
-                        
-                        <div class="flex items-center space-x-2">
-                            ${window.app && window.app.isAdmin ? `
-                                <button class="edit-description-btn p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-all duration-200" data-item-id="${item.id}" title="编辑描述">
-                                    <i class="fas fa-edit"></i>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <button class="trigger-btn px-6 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all duration-200 font-medium ${!canTrigger ? 'opacity-50 cursor-not-allowed' : ''}" 
+                                        data-item-id="${item.id}" ${!canTrigger ? 'disabled' : ''}>
+                                    <i class="fas fa-play mr-2"></i>触发测试
                                 </button>
-                                <button class="delete-btn p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200" data-item-id="${item.id}" title="删除">
-                                    <i class="fas fa-trash"></i>
+                                <button class="associate-build-btn px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-200 text-sm" data-item-id="${item.id}">
+                                    <i class="fas fa-link mr-1"></i>关联构建
                                 </button>
-                            ` : ''}
-                        </div>
-                    </div>
-                      <div class="test-history mt-4 ${isExpanded ? '' : 'hidden'}" data-item-id="${item.id}">
-                        <div class="flex items-center justify-between mb-3">
-                            <h4 class="font-medium text-gray-700">
-                                <i class="fas fa-history mr-2"></i>Execute History
-                            </h4>
-                            <button class="clear-history-btn text-sm text-gray-500 hover:text-red-600" data-item-id="${item.id}">
-                                清理历史
-                            </button>
+                                <button class="associate-notification-btn px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-all duration-200 text-sm" data-item-id="${item.id}">
+                                    <i class="fas fa-bell mr-1"></i>关联通知
+                                </button>
+                            </div>
                         </div>
                         
-                        <!-- Tab Navigation -->
-                        <div class="flex border-b border-gray-200 mb-4">
-
-                            <button class="history-tab px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700" data-item-id="${item.id}" data-tab="deploy">
-                                部署测试
-                            </button>
-                        </div>
+                        <!-- 版本信息 -->
+                        ${versionInfoHtml}
                         
-                        <div class="history-content bg-gray-50 rounded-lg p-4" data-item-id="${item.id}">
-                            <div class="text-center text-gray-500">
-                                <i class="fas fa-spinner fa-spin"></i> 加载中...
+                        <!-- 执行历史区域 -->
+                        <div class="test-history ${isExpanded ? '' : 'hidden'}" data-item-id="${item.id}">
+                            <div class="flex items-center justify-between mb-3">
+                                <h4 class="font-semibold text-gray-700 flex items-center">
+                                    <i class="fas fa-history mr-2 text-blue-500"></i>执行历史
+                                </h4>
+                                <button class="clear-history-btn text-sm text-gray-500 hover:text-red-600" data-item-id="${item.id}">
+                                    <i class="fas fa-trash-alt mr-1"></i>清理历史
+                                </button>
+                            </div>
+                            
+                            <div class="flex border-b border-gray-200 mb-4">
+                                <button class="history-tab px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent" data-item-id="${item.id}" data-tab="deploy">
+                                    <i class="fas fa-rocket mr-1"></i>部署测试
+                                </button>
+                            </div>
+                            
+                            <div class="history-content bg-gray-50 rounded-lg p-4" data-item-id="${item.id}">
+                                <div class="text-center text-gray-500">
+                                    <i class="fas fa-spinner fa-spin"></i> 加载中...
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -144,7 +190,6 @@ class TestTrigger {
 
         container.innerHTML = html;
         this.attachEventListeners();
-        this.loadVersionsForAllItems();
         this.loadParameterSetsForAllItems();
     }
 
@@ -250,70 +295,10 @@ class TestTrigger {
             });
         });
 
-        // 版本搜索功能
-        container.querySelectorAll('.version-search').forEach(input => {
-            const itemId = parseInt(input.dataset.itemId);
-            
-            input.addEventListener('focus', (e) => {
-                this.showVersionDropdown(itemId);
-            });
-            
-            input.addEventListener('input', (e) => {
-                this.filterVersions(itemId, e.target.value);
-            });
-            
-            input.addEventListener('blur', (e) => {
-                // 延迟隐藏下拉框，以便点击选项
-                setTimeout(() => {
-                    this.hideVersionDropdown(itemId);
-                }, 200);
-            });
-        });
+
     }
 
-    static async loadVersionsForAllItems() {
-        for (const item of this.testItems) {
-            await this.loadVersionsForItem(item.id, item.associated_job_name);
-        }
-    }
 
-    static async loadVersionsForItem(itemId, jobName) {
-        const dropdown = document.querySelector(`.version-dropdown[data-item-id="${itemId}"]`);
-        const input = document.querySelector(`.version-search[data-item-id="${itemId}"]`);
-        const hiddenInput = document.querySelector(`.version-value[data-item-id="${itemId}"]`);
-        
-        if (!dropdown || !input || !jobName) return;
-
-        try {
-            const response = await API.getBuildsByJobName(jobName);
-            const builds = response.data || [];
-            
-            // 存储构建数据以供搜索使用
-            this.buildData = this.buildData || {};
-            this.buildData[itemId] = builds;
-            
-            this.renderVersionDropdown(itemId, builds);
-                
-            // 默认选择最新版本
-            if (builds.length > 0) {
-                const latestBuild = builds[0];
-                // Format time as 20250615-12:43
-                const buildTime = new Date(latestBuild.created_at);
-                const year = buildTime.getFullYear();
-                const month = String(buildTime.getMonth() + 1).padStart(2, '0');
-                const day = String(buildTime.getDate()).padStart(2, '0');
-                const hours = String(buildTime.getHours()).padStart(2, '0');
-                const minutes = String(buildTime.getMinutes()).padStart(2, '0');
-                const formattedTime = `${year}${month}${day}-${hours}:${minutes}`;
-                
-                const displayText = `${latestBuild.job_name} #${latestBuild.build_number} - ${latestBuild.build_user} ${formattedTime}`;
-                input.value = displayText;
-                hiddenInput.value = latestBuild.id;
-            }
-        } catch (error) {
-            console.error(`Failed to load versions for item ${itemId}:`, error);
-        }
-    }
 
     static async loadParameterSetsForAllItems() {
         try {
@@ -528,101 +513,19 @@ class TestTrigger {
         }
     }
 
-    static renderVersionDropdown(itemId, builds) {
-        const dropdown = document.querySelector(`.version-dropdown[data-item-id="${itemId}"]`);
-        if (!dropdown) return;
-        
-        const html = builds.map((build, index) => {
-            // Format time as 20250615-12:43
-            const buildTime = new Date(build.created_at);
-            const year = buildTime.getFullYear();
-            const month = String(buildTime.getMonth() + 1).padStart(2, '0');
-            const day = String(buildTime.getDate()).padStart(2, '0');
-            const hours = String(buildTime.getHours()).padStart(2, '0');
-            const minutes = String(buildTime.getMinutes()).padStart(2, '0');
-            const formattedTime = `${year}${month}${day}-${hours}:${minutes}`;
-            
-            const displayText = `${build.job_name} #${build.build_number} - ${build.build_user} ${formattedTime}`;
-            const isEven = index % 2 === 0;
-            
-            // Generate build path in same format as build info page
-            const baseUrl = 'http://192.168.1.199:8080/job/'; // This should match build info page base URL
-            const buildPath = `${baseUrl}${build.job_name}/${build.build_number}`;
-            
-            // Create full display text with build path and package download URL
-            const packageDownloadUrl = build.package_path || 'N/A';
-            const fullDisplayText = `${build.job_name} #${build.build_number} - ${build.build_user} ${formattedTime} - 构建路径: ${buildPath} - 包下载地址: ${packageDownloadUrl}`;
-            
-            return `
-                <div class="version-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 ${isEven ? 'bg-gray-50' : 'bg-white'}" 
-                     data-value="${build.id}" 
-                     data-display="${displayText}"
-                     data-item-id="${itemId}">
-                    <div class="font-medium text-sm whitespace-nowrap">
-                        ${fullDisplayText}
-                    </div>
-                </div>
-            `;
-        }).join('');
-        
-        dropdown.innerHTML = html;
-        
-        // 添加点击事件
-        dropdown.querySelectorAll('.version-option').forEach(option => {
-            option.addEventListener('click', (e) => {
-                this.selectVersion(itemId, e.currentTarget.dataset.value, e.currentTarget.dataset.display);
-            });
-        });
-    }
 
-    static showVersionDropdown(itemId) {
-        const dropdown = document.querySelector(`.version-dropdown[data-item-id="${itemId}"]`);
-        if (dropdown) {
-            dropdown.classList.remove('hidden');
-        }
-    }
-
-    static hideVersionDropdown(itemId) {
-        const dropdown = document.querySelector(`.version-dropdown[data-item-id="${itemId}"]`);
-        if (dropdown) {
-            dropdown.classList.add('hidden');
-        }
-    }
-
-    static filterVersions(itemId, searchText) {
-        const dropdown = document.querySelector(`.version-dropdown[data-item-id="${itemId}"]`);
-        if (!dropdown || !this.buildData || !this.buildData[itemId]) return;
-        
-        const builds = this.buildData[itemId];
-        const filteredBuilds = builds.filter(build => {
-            const searchLower = searchText.toLowerCase();
-            return build.job_name.toLowerCase().includes(searchLower) ||
-                   build.build_number.toString().includes(searchLower) ||
-                   build.build_user.toLowerCase().includes(searchLower) ||
-                   (build.package_path && build.package_path.toLowerCase().includes(searchLower));
-        });
-        
-        this.renderVersionDropdown(itemId, filteredBuilds);
-        this.showVersionDropdown(itemId);
-    }
-
-    static selectVersion(itemId, buildId, displayText) {
-        const input = document.querySelector(`.version-search[data-item-id="${itemId}"]`);
-        const hiddenInput = document.querySelector(`.version-value[data-item-id="${itemId}"]`);
-        
-        if (input && hiddenInput) {
-            input.value = displayText;
-            hiddenInput.value = buildId;
-            this.hideVersionDropdown(itemId);
-        }
-    }
 
     static async triggerTest(itemId) {
-        const hiddenInput = document.querySelector(`.version-value[data-item-id="${itemId}"]`);
-        const buildInfoId = hiddenInput.value;
+        // Use global selected version
+        if (!this.currentGlobalVersion) {
+            alert('请先在构建信息页面选择一个版本');
+            return;
+        }
         
-        if (!buildInfoId) {
-            alert('请先选择一个版本');
+        // Check if item is compatible with current version
+        const item = this.testItems.find(t => t.id === itemId);
+        if (item && item.associated_job_name && item.associated_job_name !== this.currentGlobalVersion.job_name) {
+            alert(`此测试项关联到 "${item.associated_job_name}"，当前选择的版本是 "${this.currentGlobalVersion.job_name}"。请选择正确的版本或修改测试项关联。`);
             return;
         }
 
@@ -631,21 +534,27 @@ class TestTrigger {
         
         try {
             button.disabled = true;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>触发中...';
+            button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>触发中...';
             
             // 获取选中的参数集ID
             const paramSelect = document.querySelector(`.parameter-select[data-item-id="${itemId}"]`);
             const parameterSetId = paramSelect && paramSelect.value ? parseInt(paramSelect.value) : null;
             
-            await API.triggerDeployTest(itemId, parseInt(buildInfoId), parameterSetId);
+            await API.triggerDeployTest(itemId, this.currentGlobalVersion.id, parameterSetId);
             
-            alert('测试已触发，请查看执行历史');
+            // Show success message
+            if (window.app && window.app.showSuccess) {
+                window.app.showSuccess('测试已触发，请查看执行历史');
+            } else {
+                alert('测试已触发，请查看执行历史');
+            }
             
             // 如果历史记录是展开的，刷新它
             if (this.expandedItems.has(itemId)) {
                 this.loadDeployTestHistory(itemId);
             }
         } catch (error) {
+            console.error('Trigger test failed:', error);
             alert('触发失败: ' + error.message);
         } finally {
             button.disabled = false;

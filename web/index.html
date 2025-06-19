@@ -88,13 +88,13 @@
                 <!-- Core 标签下的侧边栏 -->
                 <div id="coreSidebar" class="sidebar-content">
                     <div class="space-y-2">
-                        <button id="triggerTestBtn" class="sidebar-item w-full flex items-center px-4 py-3 text-left rounded-lg transition-all duration-200 sidebar-active">
-                            <i class="fas fa-play-circle mr-3"></i>
-                            <span>Trigger Test</span>
-                        </button>
-                        <button id="buildInfoBtn" class="sidebar-item w-full flex items-center px-4 py-3 text-left rounded-lg transition-all duration-200 text-gray-600 hover:bg-gray-50">
+                        <button id="buildInfoBtn" class="sidebar-item w-full flex items-center px-4 py-3 text-left rounded-lg transition-all duration-200 sidebar-active">
                             <i class="fas fa-cube mr-3"></i>
                             <span>Build Info</span>
+                        </button>
+                        <button id="triggerTestBtn" class="sidebar-item w-full flex items-center px-4 py-3 text-left rounded-lg transition-all duration-200 text-gray-600 hover:bg-gray-50">
+                            <i class="fas fa-play-circle mr-3"></i>
+                            <span>Trigger Test</span>
                         </button>
                         <button id="parameterSetsBtn" class="sidebar-item w-full flex items-center px-4 py-3 text-left rounded-lg transition-all duration-200 text-gray-600 hover:bg-gray-50">
                             <i class="fas fa-list-alt mr-3"></i>
@@ -123,9 +123,15 @@
         <main class="flex-1 p-8 overflow-y-auto h-screen">
             <!-- Core Tab 1: Build Info -->
             <div id="buildInfoContent" class="content-section">
-                <div class="mb-8">
-                    <h2 class="text-3xl font-bold text-gray-900 mb-2">构建信息管理</h2>
-                    <p class="text-gray-600">管理来自 Jenkins 的构建信息</p>
+                <div class="mb-8 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-3xl font-bold text-gray-900 mb-2">构建信息管理</h2>
+                        <p class="text-gray-600">管理来自 Jenkins 的构建信息</p>
+                    </div>
+                    <button id="refreshBuildInfoBtn" class="px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all duration-200 flex items-center space-x-2 text-gray-600 hover:text-gray-800">
+                        <i class="fas fa-sync-alt"></i>
+                        <span>刷新</span>
+                    </button>
                 </div>
 
                 <!-- 添加 Job 名称 - 只有管理员可见 -->
@@ -151,9 +157,15 @@
 
             <!-- Core Tab 2: Trigger Test -->
             <div id="triggerTestContent" class="content-section hidden">
-                <div class="mb-8">
-                    <h2 class="text-3xl font-bold text-gray-900 mb-2">触发执行</h2>
-                    <p class="text-gray-600">管理和触发自动化测试</p>
+                <div class="mb-8 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-3xl font-bold text-gray-900 mb-2">触发执行</h2>
+                        <p class="text-gray-600">管理和触发自动化测试</p>
+                    </div>
+                    <button id="refreshTriggerTestBtn" class="px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all duration-200 flex items-center space-x-2 text-gray-600 hover:text-gray-800">
+                        <i class="fas fa-sync-alt"></i>
+                        <span>刷新</span>
+                    </button>
                 </div>
 
                 <!-- 添加测试项 - 只有管理员可见 -->
@@ -257,9 +269,15 @@
 
             <!-- Core: Parameter Sets -->
             <div id="parameterSetsContent" class="content-section hidden">
-                <div class="mb-8">
-                    <h2 class="text-3xl font-bold text-gray-900 mb-2">请求参数管理</h2>
-                    <p class="text-gray-600">管理触发测试时发送请求的参数, 置空不覆盖， 有值则覆盖</p>
+                <div class="mb-8 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-3xl font-bold text-gray-900 mb-2">请求参数管理</h2>
+                        <p class="text-gray-600">管理触发测试时发送请求的参数, 置空不覆盖， 有值则覆盖</p>
+                    </div>
+                    <button id="refreshParameterSetsBtn" class="px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all duration-200 flex items-center space-x-2 text-gray-600 hover:text-gray-800">
+                        <i class="fas fa-sync-alt"></i>
+                        <span>刷新</span>
+                    </button>
                 </div>
 
                 <!-- 创建参数集按钮 - 只有管理员可见 -->

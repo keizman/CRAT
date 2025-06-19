@@ -16,9 +16,9 @@ class CRATApp {
         
         // 路由映射
         this.routes = {
-            '/': { tab: 'core', sidebar: 'triggerTest' },
-            '/tests': { tab: 'core', sidebar: 'triggerTest' },
+            '/': { tab: 'core', sidebar: 'buildInfo' },
             '/builds': { tab: 'core', sidebar: 'buildInfo' },
+            '/tests': { tab: 'core', sidebar: 'triggerTest' },
             '/parameter-sets': { tab: 'core', sidebar: 'parameterSets' },
             '/settings': { tab: 'setting', sidebar: 'systemSetting' },
             '/settings/smtp': { tab: 'setting', sidebar: 'smtpSetting' }
@@ -68,6 +68,9 @@ class CRATApp {
         // 将isAdmin状态保存到window.app供其他组件使用
         window.app = window.app || {};
         window.app.isAdmin = this.isAdmin;
+        
+        // Make TestTrigger available globally for BuildInfo communication
+        window.TestTrigger = TestTrigger;
     }
 
     initRouting() {
@@ -86,7 +89,7 @@ class CRATApp {
             this.switchSidebar(route.sidebar);
         } else {
             // 默认路由到首页
-            this.navigateTo('/tests');
+            this.navigateTo('/builds');
         }
     }
 
@@ -148,6 +151,11 @@ class CRATApp {
 
         // 登出按钮
         document.getElementById('logoutButton').addEventListener('click', () => Auth.logout());
+
+        // 刷新按钮事件
+        document.getElementById('refreshBuildInfoBtn').addEventListener('click', () => this.refreshBuildInfo());
+        document.getElementById('refreshTriggerTestBtn').addEventListener('click', () => this.refreshTriggerTest());
+        document.getElementById('refreshParameterSetsBtn').addEventListener('click', () => this.refreshParameterSets());
 
         // Build Info 相关事件
         document.getElementById('addJobBtn').addEventListener('click', () => this.addJobName());
@@ -374,6 +382,68 @@ class CRATApp {
         // 简单的成功提示，可以使用更好的通知组件
         alert('成功: ' + message);
         console.log('成功: ' + message);
+    }
+
+    // 刷新方法
+    async refreshBuildInfo() {
+        const button = document.getElementById('refreshBuildInfoBtn');
+        const icon = button.querySelector('i');
+        
+        // 添加旋转动画
+        icon.classList.add('fa-spin');
+        button.disabled = true;
+        
+        try {
+            await BuildInfo.loadJobNames();
+            await BuildInfo.loadBuildInfoList();
+            // Remove success hint for refresh button
+        } catch (error) {
+            console.error('Failed to refresh build info:', error);
+            this.showError('刷新构建信息失败: ' + error.message);
+        } finally {
+            icon.classList.remove('fa-spin');
+            button.disabled = false;
+        }
+    }
+
+    async refreshTriggerTest() {
+        const button = document.getElementById('refreshTriggerTestBtn');
+        const icon = button.querySelector('i');
+        
+        // 添加旋转动画
+        icon.classList.add('fa-spin');
+        button.disabled = true;
+        
+        try {
+            await TestTrigger.loadTestItems();
+            // Remove success hint for refresh button
+        } catch (error) {
+            console.error('Failed to refresh test items:', error);
+            this.showError('刷新测试项失败: ' + error.message);
+        } finally {
+            icon.classList.remove('fa-spin');
+            button.disabled = false;
+        }
+    }
+
+    async refreshParameterSets() {
+        const button = document.getElementById('refreshParameterSetsBtn');
+        const icon = button.querySelector('i');
+        
+        // 添加旋转动画
+        icon.classList.add('fa-spin');
+        button.disabled = true;
+        
+        try {
+            await ParameterSets.loadParameterSets();
+            // Remove success hint for refresh button
+        } catch (error) {
+            console.error('Failed to refresh parameter sets:', error);
+            this.showError('刷新参数集失败: ' + error.message);
+        } finally {
+            icon.classList.remove('fa-spin');
+            button.disabled = false;
+        }
     }
 }
 

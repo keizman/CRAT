@@ -52,7 +52,7 @@ func SetupAPIRoutes(router *gin.Engine) {
 		// 系统设置读取（所有认证用户可访问）
 		authenticated.GET("/settings", systemSettingController.GetSettings)
 		authenticated.GET("/settings/:key", systemSettingController.GetSetting)
-		
+
 		// 参数集读取（所有认证用户可访问）
 		authenticated.GET("/parameter-sets", parameterSetController.GetParameterSets)
 		authenticated.GET("/parameter-sets/:id", parameterSetController.GetParameterSet)
@@ -75,7 +75,7 @@ func SetupAPIRoutes(router *gin.Engine) {
 			// 系统设置修改（仅管理员可访问）
 			admin.PUT("/settings", systemSettingController.UpdateSettings)
 			admin.PUT("/settings/:key", systemSettingController.UpdateSetting)
-			
+
 			// 参数集管理（仅管理员可访问）
 			admin.POST("/parameter-sets", parameterSetController.CreateParameterSet)
 			admin.PUT("/parameter-sets/:id", parameterSetController.UpdateParameterSet)

@@ -455,3 +455,32 @@ preview功能改版， 通过在 report后拼接widgets/summary.json 可以获�
 
  修改 SendTestSuccessNotification 的 报告 message， @notification_service.go  1.构建信息 填写 构建路径
 http://192.168.1.199:8080/job/CDN_SsgAgent/77。 2.执行时间: 获取当前时间。 查看测试报告 文字改为查看完整测试报告， 3增加刚刚 的 preview 按钮的数据到这里， （如果时 complete 状态。 ） 4.本邮件由 CRAT 自动化测试平台自动发送，请勿回复。- 改为从 设置获取 项目名称。获取不到再使用这个默认的
+
+
+-----------
+
+
+1.put build info above trigger test 2.build info 构建 card 可以选择 version， 增加一个 选择版本进行测试 button on 构建card 右上角，
+   和time 同行。 逻辑： - 在用户访问 /builds 时将版本选择为 orderby create_time 最新的一条数据 24h 只做一次同步修改，-
+  在用户点击某个构建的右上角 button 后版本更新为用户选择那个   3.terigger test Version 功能修改： 只能查看当前选择的 version 信息，
+  。页面数据较完整显示， 请你重新布局 button 位置 和 description verison 显示位置， 让他们更好的显示， 且美观
+
+ 逻辑： - 在用户访问 /builds 时将版本选择为 orderby create_time 最新的一条数据 24h 只做一次同步修改，-
+    在用户点击某个构建的右上角 button 后版本更新为用户选择那个 2.terigger test Version 功能修改： 只能查看当前选择的 version 信息，
+  不能手动选择， 以当前样式去掉选择功能， - 概念，每一个 item 有自己关联的 build ， 他们是独立的， 选择不同 build
+  版本时同步的是关联的 item 信息，不是所有的。 未关联的不展示数据即可
+
+----
+why trigger test page only on item even db has three items.  2.Shoul not hint when press 刷新 button
+
+
+---
+build info 构建 card 可以选择 version， 逻辑： - 在用户访问 /builds 时将版本选择为 orderby create_time 最新的一条数据 24h 只做一次同步修改，- 在用户点击某个构建的右上角 button 后版本更新为用户选择那个    2.terigger test Version 功能： 只能查看当前选择的 version 信息
+  - 概念，每一个 item 有自己关联的 build ， 他们是独立的， 选择不同 build
+版本时同步的是关联的 item 信息，不是所有的。 未关联的不展示数据即可。 可以考虑在数据库添加新的字段来持久化选择的版本。
+请确保在执行数据库操作前先读 schema.sql 了解现有架构。
+build info 构建 card 可以选择 version， 逻辑： - 在用户访问 /builds 时将版本选择为 orderby create_time 最新的一条数据 24h 只做一次同步修改，- 在用户点击某个构建的右上角 button 后版本更新为用户选择那个    2.terigger test Version 功能： 只能查看当前选择的 version 信息
+  - 概念，每一个 item 有自己关联的 build ， 他们是独立的， 选择不同 build
+版本时同步的是关联的 item 信息，不是所有的。 未关联的不展示数据即可。 可以考虑在数据库添加新的字段来持久化选择的版本。
+请确保在执行数据库操作前先读 schema.sql 了解现有架构。
+Look for a build info controller file in the controllers directory or any file that handles build info related API endpoints.
