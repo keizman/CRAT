@@ -502,3 +502,6 @@ SET "name"='cds', description='CDS服务自动化测试， SDS 自动部署', as
 WHERE id=3;
 
 ---
+根据提供的文件，是 api/devlop_and_test 接口的 server。请你先了解所有项目后按要求信息画两张 mermaid 流程图帮助不懂的人快速了解项目在做什么， 
+1.go 项目流程， 数据流向是怎样的， 
+2.以api/devlop_and_test 为 index 画出 当 触发测试时 server 的交互是怎样的 ，如何最终走到 通过 pytest 执行测试的 

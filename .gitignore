@@ -89,3 +89,6 @@ not_in_porject_trigger_server.py
 tmp.md
 .claude/settings.local.json
 CLAUDE.md
+not_in_project_implemetation.py
+not_in_project_trigger_server.py
+not_in_project_upgrader.py

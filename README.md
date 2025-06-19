@@ -27,6 +27,8 @@
 ## 核心功能
 
 - **构建信息管理**: 接收并存储来自Jenkins的构建信息
+- **版本管理**: 独立的作业版本选择和自动同步机制
+- **参数配置**: 灵活的测试参数集管理系统
 - **部署测试**: 完整的自动化部署测试流程，包括下载、部署、测试和监控
 - **用户认证**: 基于JWT的用户认证系统
 - **系统管理**: 灵活的系统设置管理
@@ -52,13 +54,17 @@ crat/
 │   ├── test_item.go                     # 测试项模型
 │   ├── deploy_test_run.go               # 部署测试运行模型
 │   ├── system_setting.go               # 系统设置模型
-│   └── user_session.go                  # 用户会话模型
+│   ├── user_session.go                  # 用户会话模型
+│   ├── job_version_selection.go         # 作业版本选择模型
+│   └── parameter_set.go                 # 参数集模型
 │
 ├── controllers/                         # 控制器
 │   ├── auth.go                          # 认证相关
 │   ├── build_info.go                    # 构建信息接口
 │   ├── test_item.go                     # 测试项接口
-│   └── system_setting.go               # 系统设置接口
+│   ├── system_setting.go               # 系统设置接口
+│   ├── job_version.go                   # 作业版本管理接口
+│   └── parameter_set.go                 # 参数集管理接口
 │
 ├── services/                            # 业务逻辑服务
 │   ├── build_service.go                 # 构建信息服务
@@ -89,7 +95,8 @@ crat/
 │           └── components/              # UI 组件
 │               ├── build-info.js        # 构建信息组件
 │               ├── test-trigger.js      # 测试触发组件
-│               └── settings.js          # 设置组件
+│               ├── settings.js          # 设置组件
+│               └── parameter-sets.js   # 参数集管理组件
 │
 └── not_in_porject_trigger_server.py     # 外部测试服务器 (参考)
 ```
@@ -106,10 +113,12 @@ crat/
 
 ### 前端
 - **基础**: HTML5 + CSS3 + JavaScript (ES6+)
-- **CSS框架**: TailwindCSS 3.0+ (CDN)
-- **动画**: Framer Motion (CDN)
-- **图标**: Font Awesome (CDN)
-- **图表**: Chart.js (CDN)
+- **构建工具**: Vite 5.0+ (现代化构建系统)
+- **CSS框架**: TailwindCSS 3.3.6+ 集成PostCSS和Autoprefixer
+- **动画**: Framer Motion 11.0+
+- **图表**: Chart.js 4.4.0+
+- **包管理**: npm with ES6 modules
+- **代码优化**: Terser压缩，支持Legacy浏览器兼容
 
 ### 数据库
 - **主数据库**: PostgreSQL
@@ -120,7 +129,7 @@ crat/
 ### 1. 克隆项目
 ```bash
 git clone <repository-url>
-cd crat2
+
 ```
 
 ### 2. 后端启动
@@ -153,7 +162,7 @@ npm run build
 
 ### 4. 访问应用
 - 开发环境: http://localhost:3000 (前端开发服务器)
-- 生产环境: http://localhost:6000 (后端直接提供静态文件)
+- 生产环境: http://localhost:8000 (后端直接提供静态文件)
 
 ## 安装和部署
 
@@ -198,8 +207,6 @@ EMAIL_SEND_PASSWORD=your_password
 EMAIL_SEND_SERVER=smtp.exmail.qq.com
 EMAIL_SEND_SERVER_PORT=465
 
-# External Services
-EXTERNAL_TEST_SERVER_URL=http://192.168.1.118:59996
 ```
 
 ### 3. 编译和运行
@@ -278,6 +285,50 @@ GET /api/v1/deploy-test-runs/{run_id}      # 获取部署测试运行详情
 ```
 GET /api/v1/settings           # 获取系统设置
 PUT /api/v1/settings           # 更新系统设置
+```
+
+### 4.7 作业版本管理
+```
+GET /api/v1/job-versions                    # 获取所有作业版本选择
+GET /api/v1/job-versions/{job_name}         # 获取指定作业的版本选择
+PUT /api/v1/job-versions                    # 设置作业版本选择
+POST /api/v1/job-versions/{job_name}/sync   # 同步作业到最新版本
+DELETE /api/v1/job-versions/{job_name}      # 删除作业版本选择
+POST /api/v1/job-versions/auto-sync         # 自动同步所有启用的作业版本
+```
+
+设置版本选择示例:
+```json
+{
+  "job_name": "CDN_CORE",
+  "build_id": 123,
+  "auto_sync": true
+}
+```
+
+### 4.8 参数集管理
+```
+GET /api/v1/parameter-sets      # 获取参数集列表
+POST /api/v1/parameter-sets     # 创建参数集
+GET /api/v1/parameter-sets/{id} # 获取参数集详情
+PUT /api/v1/parameter-sets/{id} # 更新参数集
+DELETE /api/v1/parameter-sets/{id} # 删除参数集
+```
+
+创建参数集示例:
+```json
+{
+  "name": "CDS测试参数",
+  "description": "CDS服务测试参数配置",
+  "parameters": {
+    "service_name": "cds",
+    "install_dir": "/usr/local/cds",
+    "upgrade_type": "full",
+    "test_path": "/opt/test",
+    "base_url": "http://example.com",
+    "report_keyword": "test_report"
+  }
+}
 ```
 
 ## Jenkins 配置
@@ -365,6 +416,16 @@ curl -X POST -H "Content-Type: application/json" \
 
 ### user_sessions (用户会话表)
 - 简单的用户认证系统
+
+### job_version_selections (作业版本选择表)
+- 管理每个作业的独立版本选择
+- 支持自动同步功能，24小时间隔自动选择最新构建
+- 替代全局版本选择，实现多作业环境下的版本冲突解决
+
+### parameter_sets (参数集表)
+- 存储可重用的测试参数配置
+- 使用JSONB格式存储灵活的参数结构
+- 支持测试项关联特定参数集进行部署测试
 
 ## 认证系统架构分析
 
@@ -484,6 +545,42 @@ CREATE TABLE user_sessions (
 
 ## 功能特性
 
+### 作业版本管理 (新功能)
+独立的作业版本选择和管理系统，解决多作业环境下的版本冲突问题：
+
+1. **独立版本选择**
+   - 每个Jenkins作业可以独立选择测试版本
+   - 不再受其他作业版本选择影响
+   - 支持手动选择特定构建版本
+
+2. **自动同步机制**
+   - 可配置的24小时自动同步间隔
+   - 自动选择作业的最新构建版本
+   - 支持启用/禁用自动同步
+
+3. **版本状态追踪**
+   - 记录最后同步时间
+   - 显示当前选择的构建信息
+   - 支持版本选择历史查询
+
+### 参数集管理 (新功能)
+灵活的测试参数配置管理系统：
+
+1. **参数模板化**
+   - 创建可重用的参数集模板
+   - 支持JSON格式的灵活参数结构
+   - 包含服务名称、安装目录、升级类型等配置
+
+2. **参数继承**
+   - 测试项可以关联特定参数集
+   - 触发测试时自动应用参数集配置
+   - 支持参数集的动态切换
+
+3. **参数验证**
+   - 内置参数格式验证
+   - 防止删除默认参数集
+   - 支持参数集的版本化管理
+
 ### 部署测试 (核心功能)
 部署测试是一个完整的自动化流程，包含以下步骤：
 
@@ -534,9 +631,31 @@ CREATE TABLE user_sessions (
 
 ## 通知配置
 
-目前支持 SMTP 邮件通知:
-- 测试成功时发送通知到触发用户邮箱
-- 需要在 `.env` 文件中配置 SMTP 服务器信息
+### 增强的邮件通知系统
+支持丰富的HTML格式邮件通知，包含详细的测试报告信息：
+
+1. **测试成功通知**
+   - 包含项目名称和构建路径信息
+   - 自动获取并展示测试报告摘要
+   - 多彩饼图式的测试统计可视化
+   - 通过率、执行时间等关键指标展示
+   - 直接链接到完整测试报告
+
+2. **测试失败通知**
+   - 详细的错误信息和堆栈跟踪
+   - 格式化的错误展示
+   - 包含构建信息和执行时间
+
+3. **报告数据集成**
+   - 自动从测试报告URL获取summary.json数据
+   - 支持Allure报告格式的数据解析
+   - 实时统计信息（通过/失败/跳过/中断）
+   - 执行时间和性能数据
+
+4. **配置要求**
+   - 需要在 `.env` 文件中配置 SMTP 服务器信息
+   - 支持动态项目名称配置
+   - 可配置的构建路径基础URL
 
 ## 开发说明
 
@@ -614,7 +733,15 @@ go run main.go
 
 ## 版本历史
 
-### v2.0.0 (当前版本)
+### v2.1.0 (当前版本)
+- 🎯 **版本管理重构**: 独立的作业版本选择和自动同步机制
+- 📋 **参数集管理**: 灵活的测试参数配置和模板化管理
+- 📧 **通知系统增强**: 富HTML邮件通知，包含详细测试报告摘要
+- 🎨 **前端现代化**: Vite构建系统，TailwindCSS集成，Chart.js图表
+- 🔧 **API扩展**: 新增作业版本管理和参数集管理API端点
+- 🗄️ **数据库扩展**: 新增job_version_selections和parameter_sets表
+
+### v2.0.0
 - 🔄 架构重构：移除请求模板，统一使用部署测试
 - 🚀 功能增强：完整的下载-部署-测试-监控流程
 - 📊 监控改进：步骤级别的状态追踪
@@ -648,3 +775,201 @@ MIT License
 ---
 
 **注意**: 首次部署时记得修改 `.env` 文件中的数据库连接字符串和其他敏感配置信息。新版本的架构更加简洁高效，推荐升级到最新版本。
+
+------------
+
+
+# mermaid 
+
+
+```
+  flowchart TD
+      %% Jenkins 构建触发
+      Jenkins[Jenkins CI系统] -->|POST /api/v1/builds| BuildWebhook[构建信息Webhook]
+      BuildWebhook --> BuildController[BuildInfo Controller]
+      BuildController --> BuildDB[(构建信息数据库)]
+
+      %% 用户登录和认证
+      User[用户] -->|邮箱登录| AuthController[认证控制器]
+      AuthController --> UserSession[(用户会话表)]
+      AuthController -->|JWT Token| Frontend[前端界面]
+
+      %% 版本管理
+      Frontend -->|选择构建版本| JobVersionController[作业版本控制器]
+      JobVersionController --> JobVersionDB[(作业版本选择表)]
+      JobVersionController -->|自动同步| BuildDB
+
+      %% 参数集管理
+      Frontend -->|配置测试参数| ParameterController[参数集控制器]
+      ParameterController --> ParameterDB[(参数集表)]
+
+      %% 测试项管理
+      Frontend -->|管理测试项| TestItemController[测试项控制器]
+      TestItemController --> TestItemDB[(测试项表)]
+      TestItemDB -->|关联| ParameterDB
+      TestItemDB -->|关联| JobVersionDB
+
+      %% 触发部署测试
+      Frontend -->|触发测试| DeployTestTrigger[部署测试触发]
+      DeployTestTrigger --> DeployTestService[部署测试服务]
+      DeployTestService --> DeployTestRunDB[(部署测试运行表)]
+
+      %% 部署测试流程
+      DeployTestService -->|1. 下载包| PackageDownload[包文件下载]
+      PackageDownload -->|下载URL| PackageServer[包文件服务器]
+
+      DeployTestService -->|2. 部署测试| ExternalAPI[外部测试服务器API]
+      ExternalAPI -->|/api/deploy_and_test| PythonServer[Python FastAPI服务器]
+
+      DeployTestService -->|3. 监控状态| StatusMonitor[状态监控]
+      StatusMonitor -->|/api/tasks/task_id| PythonServer
+
+      DeployTestService -->|4. 发送通知| NotificationService[通知服务]
+      NotificationService -->|SMTP邮件| EmailServer[邮件服务器]
+
+      %% 系统设置
+      SystemSettings[(系统设置表)] --> DeployTestService
+      SystemSettings --> NotificationService
+
+      %% 前端界面展示
+      Frontend -->|构建信息页面| BuildInfo[构建版本管理]
+      Frontend -->|测试页面| TestTrigger[测试触发界面]
+      Frontend -->|设置页面| Settings[系统设置]
+      Frontend -->|参数集页面| ParameterSets[参数集管理]
+
+      %% 数据库连接
+      BuildDB -.-> PostgreSQLDB[(PostgreSQL数据库)]
+      UserSession -.-> PostgreSQLDB
+      JobVersionDB -.-> PostgreSQLDB
+      ParameterDB -.-> PostgreSQLDB
+      TestItemDB -.-> PostgreSQLDB
+      DeployTestRunDB -.-> PostgreSQLDB
+      SystemSettings -.-> PostgreSQLDB
+
+      %% 样式
+      classDef userInterface fill:#e1f5fe
+      classDef controller fill:#f3e5f5
+      classDef service fill:#e8f5e8
+      classDef database fill:#fff3e0
+      classDef external fill:#ffebee
+
+      class User,Frontend,BuildInfo,TestTrigger,Settings,ParameterSets userInterface
+      class AuthController,BuildController,JobVersionController,ParameterController,TestItemController controller
+      class DeployTestService,NotificationService service
+      class BuildDB,UserSession,JobVersionDB,ParameterDB,TestItemDB,DeployTestRunDB,SystemSettings,PostgreSQLDB database
+      class Jenkins,PackageServer,PythonServer,EmailServer,ExternalAPI external
+```
+
+
+```
+  flowchart TD
+      %% 用户触发测试
+      User[用户点击触发测试] -->|选择构建版本和参数集| Frontend[CRAT前端界面]
+      Frontend -->|POST /api/v1/test-items/id/deploy-test| GoAPI[Go后端API]
+
+      %% Go服务处理
+      GoAPI --> TriggerDeployTest[TriggerDeployTest方法]
+      TriggerDeployTest --> CreateRecord[创建DeployTestRun记录]
+      CreateRecord --> PostgresDB[(PostgreSQL数据库)]
+      TriggerDeployTest -->|异步执行| ExecuteDeployTest[executeDeployTest协程]
+
+      %% 步骤1: 下载包文件
+      ExecuteDeployTest -->|步骤1| DownloadStep[downloadPackage]
+      DownloadStep -->|构建下载URL| PackageServer[包文件服务器<br/>192.168.1.117]
+      PackageServer -->|下载tar.gz包| LocalFile[本地/tmp目录]
+      DownloadStep -->|更新状态为DOWNLOADED| PostgresDB
+
+      %% 步骤2: 触发外部测试
+      ExecuteDeployTest -->|步骤2| TriggerExternalTest[triggerExternalTest]
+      TriggerExternalTest -->|POST /api/deploy_and_test_mock| PythonServer[Python FastAPI服务器<br/>192.168.1.118:59996]
+
+      %% Python服务器处理
+      PythonServer --> ReceiveRequest[接收部署测试请求]
+      ReceiveRequest --> CreateTaskID[生成UUID task_id]
+      CreateTaskID -->|返回task_id| TriggerExternalTest
+      TriggerExternalTest -->|保存task_id| PostgresDB
+
+      %% Python异步执行部署和测试
+      CreateTaskID -->|异步执行| CombinedTask[combined_task协程]
+      CombinedTask -->|阶段1| DeployPhase[部署阶段 running:deploy]
+
+      %% 部署阶段详细流程
+      DeployPhase --> ServiceType判断服务类型
+      ServiceType -->|CDS/SDS| CServiceDeploy[C服务部署<br/>upgrade_c_service]
+      ServiceType -->|SSGAGENT/SLS| OpenRestyDeploy[OpenResty服务部署<br/>upgrade_openresty_service_full/update]
+
+      %% C服务部署流程
+      CServiceDeploy --> ExtractPackage[解压tar.gz包]
+      ExtractPackage --> StopService[停止服务 stop.sh]
+      StopService --> BackupBinary[备份现有二进制文件]
+      BackupBinary --> CopyNewBinary[复制新二进制文件]
+      CopyNewBinary --> CopyConfig[复制配置文件]
+      CopyConfig --> SetPermissions[设置可执行权限]
+
+      %% OpenResty服务部署流程
+      OpenRestyDeploy --> ExtractPackage2[解压tar.gz包]
+      ExtractPackage2 --> StopService2[停止服务 scripts/stop.sh]
+      StopService2 --> BackupDir[备份整个安装目录]
+      BackupDir --> MoveNewContent[移动新内容到安装目录]
+      MoveNewContent --> CopyConfig2[复制配置文件]
+
+      %% 测试阶段
+      SetPermissions --> TestPhase[测试阶段 running:test]
+      CopyConfig2 --> TestPhase
+      TestPhase --> ExecutePytest[执行pytest测试]
+
+      %% pytest执行流程
+      ExecutePytest --> RunPytestScript[run_pytest.sh脚本]
+      RunPytestScript --> PytestExecution[pytest命令执行]
+      PytestExecution --> AllureResults[生成Allure结果]
+      AllureResults --> GenerateReport[生成Allure HTML报告]
+      GenerateReport --> NginxServer[Nginx服务器<br/>192.168.1.118:59996]
+      NginxServer --> ReportURL[返回报告URL]
+
+      %% 任务完成
+      ReportURL -->|设置completed状态| TaskComplete[任务状态completed]
+      TaskComplete -->|包含report_url| TaskResult[任务结果]
+
+      %% 步骤3: Go服务监控状态
+      ExecuteDeployTest -->|步骤3| MonitorProgress[monitorTestProgress]
+      MonitorProgress -->|每60秒查询| StatusQuery[GET /api/tasks/task_id]
+      StatusQuery --> PythonServer
+      PythonServer -->|返回状态| StatusResponse[状态响应]
+
+      %% 状态检查循环
+      StatusResponse --> StatusCheck检查状态
+      StatusCheck -->|pending/running| WaitAndRetry[等待60秒后重试]
+      WaitAndRetry --> StatusQuery
+      StatusCheck -->|completed| ExtractReportURL[提取report_url]
+      StatusCheck -->|failed| HandleFailure[处理失败]
+      StatusCheck -->|超时3小时| TimeoutError[超时错误]
+
+      %% 步骤4: 发送通知
+      ExtractReportURL -->|步骤4| SendNotification[sendNotification]
+      SendNotification --> FetchSummary[获取测试报告摘要]
+      FetchSummary -->|GET report_url/widgets/summary.json| ReportSummary[解析summary.json]
+      ReportSummary --> GenerateEmail[生成HTML邮件]
+      GenerateEmail -->|包含统计图表和报告链接| SMTPServer[SMTP邮件服务器]
+      SMTPServer -->|发送给触发用户| UserEmail[用户邮箱]
+
+      %% 最终状态更新
+      SendNotification -->|更新最终状态| FinalUpdate[最终状态更新]
+      FinalUpdate --> PostgresDB
+
+      %% 样式定义
+      classDef userAction fill:#e3f2fd
+      classDef goService fill:#e8f5e8
+      classDef pythonService fill:#fff3e0
+      classDef database fill:#fce4ec
+      classDef external fill:#f3e5f5
+      classDef deployment fill:#e0f2f1
+      classDef testing fill:#fff8e1
+
+      class User,Frontend userAction
+      class GoAPI,TriggerDeployTest,ExecuteDeployTest,DownloadStep,TriggerExternalTest,MonitorProgress,SendNotification goService
+      class PythonServer,ReceiveRequest,CombinedTask,DeployPhase,TestPhase pythonService
+      class PostgresDB database
+      class PackageServer,NginxServer,SMTPServer,UserEmail external
+      class ServiceType,CServiceDeploy,OpenRestyDeploy,ExtractPackage,StopService,BackupBinary,CopyNewBinary deployment
+      class ExecutePytest,RunPytestScript,PytestExecution,AllureResults,GenerateReport testing
+```
