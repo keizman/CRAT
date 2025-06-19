@@ -48,7 +48,7 @@ func LoadConfig() {
 	viper.AutomaticEnv()
 
 	// 设置默认值
-	viper.SetDefault("PORT", "6000")
+	viper.SetDefault("PORT", "8000")
 	viper.SetDefault("DEBUG", false)
 	viper.SetDefault("ADMIN_PASSWD", "123456")
 	viper.SetDefault("SQL_MAX_IDLE_CONNS", 100)

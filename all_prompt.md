@@ -277,7 +277,7 @@ viii. 如果配置了通知，调用邮件服务发送结果通知。SUCCESS
 这是所有配置的唯一来源，由 Go 后端在启动时读取。
 # .env
 # Server
-PORT=6000
+PORT=8000
 DEBUG=false
 
 # Auth
@@ -490,3 +490,15 @@ Look for a build info controller file in the controllers directory or any file t
 描述一下 /tests 和 /builds 选择版本进行测试的方式是怎样的， 如何选择一个版本进行测试
 我发现当前 选择版本按钮 是全局生效的，如果有多个 items 时会导致公用了这个， 探讨一下如何每一个 item 关联的 job name 管理自己的version
 选择方案二开始coding ，同时能解决， /builds 界面选择版本时刻处于选择状态问题， 我的要求时处理好版本选择状态， /tests 页面的item 若未关联 ver 不显示内容即可。
+
+
+---
+
+触发删除 builds 功能： 解释： 有些构建的版本是不包含可用包的也就是不是会触发测试的版本， 为了防止版本干扰， 做一个根据 test_items name 关联 build name 的关系判断 包下载地址中是否包含 可用 item.name的包  若不存在， 直接删除 card
+- build card 右上角增加 ‘clear build’ button
+- click job ‘clear build’ button to search from test_items who has  asso associated_job_name  there is cds. 
+UPDATE public.test_items
+SET "name"='cds', description='CDS服务自动化测试， SDS 自动部署', associated_job_name='CDN_CORE', notification_enabled=true, created_at='2025-06-17 12:04:29.608', updated_at='2025-06-18 14:48:57.121', associated_parameter_set_id=2
+WHERE id=3;
+
+---

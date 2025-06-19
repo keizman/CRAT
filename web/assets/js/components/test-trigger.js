@@ -80,9 +80,14 @@ class TestTrigger {
             if (!item.associated_job_name) {
                 // Item not associated with any job
                 versionInfoHtml = `
-                    <div class="mt-2 text-xs text-gray-500 bg-gray-50 px-3 py-1 rounded border border-gray-100">
-                        <i class="fas fa-info-circle mr-1 text-gray-500"></i>
-                        此测试项未关联到任何构建任务，请先关联构建
+                    <div class="flex items-center space-x-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-3 border border-gray-200">
+                        <div class="flex items-center justify-center w-8 h-8 bg-gray-200 rounded-full">
+                            <i class="fas fa-info-circle text-gray-500 text-sm"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="text-sm font-medium text-gray-700">未关联构建</div>
+                            <div class="text-xs text-gray-500">此测试项未关联到任何构建任务，请先关联构建</div>
+                        </div>
                     </div>
                 `;
                 canTrigger = false;
@@ -98,17 +103,28 @@ class TestTrigger {
                 canTrigger = true;
                 
                 versionInfoHtml = `
-                    <div class="mt-2 text-xs text-gray-600 bg-blue-50 px-3 py-1 rounded border border-blue-100">
-                        <i class="fas fa-check-circle mr-1 text-green-500"></i>
-                        当前测试版本: ${itemVersion.job_name} #${itemVersion.build_number} - ${itemVersion.build_user} ${formattedTime}
-                        ${itemVersion.package_path ? ` - ${itemVersion.package_path}` : ''}
+                    <div class="flex items-center space-x-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-3 border border-green-200">
+                        <div class="flex items-center justify-center w-8 h-8 bg-green-100 rounded-full">
+                            <i class="fas fa-check-circle text-green-600 text-sm"></i>
+                        </div>
+                        <div class="flex-1">
+                            <span class="text-sm font-medium text-gray-700">当前测试版本: </span>
+                            <span class="text-sm text-green-700 font-medium">
+                                ${itemVersion.job_name} #${itemVersion.build_number} - ${itemVersion.build_user} ${formattedTime}${itemVersion.package_path ? ` - ${itemVersion.package_path}` : ''}
+                            </span>
+                        </div>
                     </div>
                 `;
             } else {
                 versionInfoHtml = `
-                    <div class="mt-2 text-xs text-gray-500 bg-gray-50 px-3 py-1 rounded border border-gray-100">
-                        <i class="fas fa-info-circle mr-1 text-gray-500"></i>
-                        请先在构建信息页面为 ${item.associated_job_name} 选择一个版本
+                    <div class="flex items-center space-x-3 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg p-3 border border-yellow-200">
+                        <div class="flex items-center justify-center w-8 h-8 bg-yellow-100 rounded-full">
+                            <i class="fas fa-exclamation-triangle text-yellow-600 text-sm"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="text-sm font-medium text-gray-700">待选择版本</div>
+                            <div class="text-xs text-yellow-700">请先在构建信息页面为 ${item.associated_job_name} 选择一个版本</div>
+                        </div>
                     </div>
                 `;
             }
@@ -140,38 +156,44 @@ class TestTrigger {
                             </div>
                         </div>
                         
-                        <!-- 参数和触发按钮区域 -->
-                        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-3 sm:space-y-0 sm:space-x-4 bg-gray-50 rounded-lg p-4">
-                            <div class="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-6">
-                                <div class="flex items-center space-x-2">
-                                    <i class="fas fa-cogs text-gray-500"></i>
-                                    <span class="text-sm font-medium text-gray-500">参数配置:</span>
-                                    <div class="parameter-display text-sm text-gray-800 min-w-0 cursor-pointer hover:bg-gray-100 px-3 py-1 rounded border border-transparent hover:border-gray-300 transition-colors" data-item-id="${item.id}">
-                                        <span class="truncate block" title="默认参数">默认参数</span>
+                        <!-- 配置和版本信息区域 -->
+                        <div class="space-y-3">
+                            <!-- 参数配置 -->
+                            <div class="flex items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-3 border border-blue-100">
+                                <div class="flex items-center space-x-3">
+                                    <div class="flex items-center justify-center w-8 h-8 bg-blue-100 rounded-full">
+                                        <i class="fas fa-cogs text-blue-600 text-sm"></i>
                                     </div>
-                                    <select class="parameter-select px-3 py-1 border border-gray-200 rounded-lg text-sm w-48 hidden" 
-                                            data-item-id="${item.id}">
-                                        <option value="">默认参数</option>
-                                    </select>
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-sm font-medium text-gray-700">参数配置:</span>
+                                        <div class="parameter-display text-sm text-blue-700 font-medium cursor-pointer hover:bg-white hover:bg-opacity-50 px-3 py-1 rounded-md border border-transparent hover:border-blue-200 transition-all duration-200" data-item-id="${item.id}">
+                                            <span class="truncate block" title="默认参数">默认参数</span>
+                                        </div>
+                                        <select class="parameter-select px-3 py-1 border border-blue-200 rounded-md text-sm w-48 bg-white hidden" 
+                                                data-item-id="${item.id}">
+                                            <option value="">默认参数</option>
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
                             
-                            <div class="flex flex-wrap items-center gap-2">
-                                <button class="trigger-btn px-6 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all duration-200 font-medium ${!canTrigger ? 'opacity-50 cursor-not-allowed' : ''}" 
+                            <!-- 版本信息 -->
+                            ${versionInfoHtml}
+                            
+                            <!-- 操作按钮区域 -->
+                            <div class="flex flex-wrap items-center gap-2 pt-2">
+                                <button class="trigger-btn px-4 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all duration-200 text-sm font-medium shadow-md hover:shadow-lg ${!canTrigger ? 'opacity-50 cursor-not-allowed' : ''}" 
                                         data-item-id="${item.id}" ${!canTrigger ? 'disabled' : ''}>
-                                    <i class="fas fa-play mr-2"></i>触发测试
+                                    <i class="fas fa-play mr-1"></i>触发测试
                                 </button>
-                                <button class="associate-build-btn px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-200 text-sm" data-item-id="${item.id}">
+                                <button class="associate-build-btn px-4 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 text-sm font-medium shadow-md hover:shadow-lg" data-item-id="${item.id}">
                                     <i class="fas fa-link mr-1"></i>关联构建
                                 </button>
-                                <button class="associate-notification-btn px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-all duration-200 text-sm" data-item-id="${item.id}">
+                                <button class="associate-notification-btn px-4 py-2.5 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all duration-200 text-sm font-medium shadow-md hover:shadow-lg" data-item-id="${item.id}">
                                     <i class="fas fa-bell mr-1"></i>关联通知
                                 </button>
                             </div>
                         </div>
-                        
-                        <!-- 版本信息 -->
-                        ${versionInfoHtml}
                         
                         <!-- 执行历史区域 -->
                         <div class="test-history ${isExpanded ? '' : 'hidden'}" data-item-id="${item.id}">
@@ -1035,7 +1057,7 @@ class TestTrigger {
                     <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
                         <div class="flex items-center justify-between mb-4">
                             <h3 class="text-lg font-bold">部署测试详情</h3>
-                            <button class="close-modal text-gray-500 hover:text-gray-700">
+                            <button class="close-modal text-gray-500 hover:text-gray-700 p-2 rounded-lg hover:bg-gray-100 text-xl">
                                 <i class="fas fa-times"></i>
                             </button>
                         </div>
@@ -1091,9 +1113,30 @@ class TestTrigger {
             document.body.insertAdjacentHTML('beforeend', modalHtml);
 
             // 添加关闭事件
-            document.querySelector('.close-modal').addEventListener('click', () => {
-                document.querySelector('.fixed.inset-0').remove();
+            const modals = document.querySelectorAll('.fixed.inset-0');
+            const modal = modals[modals.length - 1]; // 获取最新插入的modal
+            const closeModal = () => {
+                modal.remove();
+                document.removeEventListener('keydown', handleEscKey);
+            };
+            
+            // 点击关闭按钮
+            modal.querySelector('.close-modal').addEventListener('click', closeModal);
+            
+            // 点击遮罩层关闭
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    closeModal();
+                }
             });
+            
+            // ESC键关闭
+            const handleEscKey = (e) => {
+                if (e.key === 'Escape') {
+                    closeModal();
+                }
+            };
+            document.addEventListener('keydown', handleEscKey);
 
         } catch (error) {
             alert('加载详情失败: ' + error.message);

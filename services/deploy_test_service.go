@@ -81,12 +81,14 @@ func (s *DeployTestService) executeDeployTest(deployTestRun *models.DeployTestRu
 
 	// 步骤1: 下载文件
 	if err := s.downloadPackage(deployTestRun, testItem, buildInfo); err != nil {
+		log.Printf("Download failed for run ID %d: %v", deployTestRun.ID, err)
 		s.updateDeployTestStatus(deployTestRun.ID, models.DeployTestStatusFailed, fmt.Sprintf("Download failed: %v", err))
 		return
 	}
 
 	// 步骤2: 发送部署测试请求
 	if err := s.triggerExternalTest(deployTestRun, testItem, buildInfo); err != nil {
+		log.Printf("Trigger test failed for run ID %d: %v", deployTestRun.ID, err)
 		s.updateDeployTestStatus(deployTestRun.ID, models.DeployTestStatusFailed, fmt.Sprintf("Trigger test failed: %v", err))
 		return
 	}
@@ -144,17 +146,39 @@ func (s *DeployTestService) downloadPackage(deployTestRun *models.DeployTestRun,
 
 	downloadPath := filepath.Join(downloadDir, packageFileName)
 
+	// 记录下载开始
+	log.Printf("Starting download for run ID %d:", deployTestRun.ID)
+	log.Printf("  Download URL: %s", downloadURL)
+	log.Printf("  Download Path: %s", downloadPath)
+
 	// 下载文件
 	if err := s.downloadFile(downloadURL, downloadPath); err != nil {
+		log.Printf("Download failed for run ID %d: %v", deployTestRun.ID, err)
 		s.addStep(deployTestRun.ID, models.StepDownload, "FAILED", "", fmt.Sprintf("Failed to download file: %v", err))
 		return err
 	}
 
-	// 验证文件存在
-	if _, err := os.Stat(downloadPath); os.IsNotExist(err) {
+	// 验证文件存在且有内容
+	fileInfo, err := os.Stat(downloadPath)
+	if os.IsNotExist(err) {
+		log.Printf("Downloaded file not found for run ID %d: %s", deployTestRun.ID, downloadPath)
 		s.addStep(deployTestRun.ID, models.StepDownload, "FAILED", "", "Downloaded file not found")
 		return fmt.Errorf("downloaded file not found: %s", downloadPath)
 	}
+	if err != nil {
+		log.Printf("Error checking downloaded file for run ID %d: %v", deployTestRun.ID, err)
+		s.addStep(deployTestRun.ID, models.StepDownload, "FAILED", "", fmt.Sprintf("Error checking downloaded file: %v", err))
+		return err
+	}
+
+	// 验证文件大小不为零
+	if fileInfo.Size() == 0 {
+		log.Printf("Downloaded file is empty for run ID %d: %s", deployTestRun.ID, downloadPath)
+		s.addStep(deployTestRun.ID, models.StepDownload, "FAILED", "", "Downloaded file is empty")
+		return fmt.Errorf("downloaded file is empty: %s", downloadPath)
+	}
+
+	log.Printf("Download successful for run ID %d: %s (size: %d bytes)", deployTestRun.ID, downloadPath, fileInfo.Size())
 
 	// 更新记录
 	config.DB.Model(&models.DeployTestRun{}).Where("id = ?", deployTestRun.ID).Updates(map[string]interface{}{
@@ -226,30 +250,74 @@ func (s *DeployTestService) findPackageFile(dirURL, testItemName string) (string
 
 // downloadFile 下载文件到本地
 func (s *DeployTestService) downloadFile(url, filepath string) error {
-	resp, err := http.Get(url)
+	// 创建HTTP客户端，设置超时
+	client := &http.Client{
+		Timeout: 10 * time.Minute, // 10分钟超时
+	}
+
+	resp, err := client.Get(url)
 	if err != nil {
-		return err
+		return fmt.Errorf("HTTP request failed: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to download file, status code: %d", resp.StatusCode)
+		return fmt.Errorf("failed to download file, status code: %d, status: %s", resp.StatusCode, resp.Status)
+	}
+
+	// 检查Content-Length
+	if resp.ContentLength == 0 {
+		return fmt.Errorf("server returned empty content (Content-Length: 0)")
 	}
 
 	out, err := os.Create(filepath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create file: %v", err)
 	}
 	defer out.Close()
 
-	_, err = io.Copy(out, resp.Body)
-	return err
+	// 复制内容并检查写入的字节数
+	written, err := io.Copy(out, resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to write file content: %v", err)
+	}
+
+	if written == 0 {
+		return fmt.Errorf("no data written to file")
+	}
+
+	// 确保文件内容被写入磁盘
+	if err := out.Sync(); err != nil {
+		return fmt.Errorf("failed to sync file to disk: %v", err)
+	}
+
+	return nil
 }
 
 // triggerExternalTest 触发外部测试服务器的测试
 func (s *DeployTestService) triggerExternalTest(deployTestRun *models.DeployTestRun, testItem *models.TestItem, buildInfo *models.BuildInfo) error {
 	s.updateDeployTestStatus(deployTestRun.ID, models.DeployTestStatusTesting, "")
 	s.addStep(deployTestRun.ID, models.StepTest, "RUNNING", "Triggering external test", "")
+
+	// 从数据库重新加载最新数据以获取下载路径
+	if err := config.DB.First(deployTestRun, deployTestRun.ID).Error; err != nil {
+		s.addStep(deployTestRun.ID, models.StepTest, "FAILED", "", fmt.Sprintf("Failed to reload deploy test run: %v", err))
+		return err
+	}
+
+	// 验证下载路径不为空
+	if deployTestRun.DownloadPath == "" {
+		err := fmt.Errorf("download path is empty, package download failed")
+		s.addStep(deployTestRun.ID, models.StepTest, "FAILED", "", err.Error())
+		return err
+	}
+
+	// 验证下载的文件确实存在
+	if _, err := os.Stat(deployTestRun.DownloadPath); os.IsNotExist(err) {
+		err := fmt.Errorf("downloaded package file not found at path: %s", deployTestRun.DownloadPath)
+		s.addStep(deployTestRun.ID, models.StepTest, "FAILED", "", err.Error())
+		return err
+	}
 
 	// 获取系统设置
 	settings, err := s.systemUtils.GetSystemSettings()
@@ -282,6 +350,12 @@ func (s *DeployTestService) triggerExternalTest(deployTestRun *models.DeployTest
 		"base_url":       params.BaseURL,
 		"report_keyword": params.ReportKeyword,
 	}
+
+	// 记录发送的请求体
+	log.Printf("Sending test request for run ID %d:", deployTestRun.ID)
+	log.Printf("  service_name: %s", params.ServiceName)
+	log.Printf("  package_path: %s", deployTestRun.DownloadPath)
+	log.Printf("  install_dir: %s", params.InstallDir)
 
 	// 发送请求
 	response, err := s.httpClient.SendRequest("POST", requestURL, map[string]string{

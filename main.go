@@ -29,10 +29,10 @@ func main() {
 	// 启动服务器
 	port := config.AppConfig.Server.Port
 	if port == "" {
-		port = "6000" // 默认端口
+		port = "8000"
 	}
 	log.Printf("Server starting on port %s", port)
-	if err := router.Run(":" + port); err != nil {
+	if err := router.Run("0.0.0.0:" + port); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }
