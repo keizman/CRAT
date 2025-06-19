@@ -42,6 +42,13 @@ func SetupAPIRoutes(router *gin.Engine) {
 		authenticated.GET("/builds/job/:job_name", buildInfoController.GetBuildsByJobName)
 		authenticated.GET("/builds/job/:job_name/latest", buildInfoController.GetLatestBuildByJobName)
 
+		// Job版本选择相关
+		authenticated.GET("/job-versions", controllers.GetAllJobVersions)
+		authenticated.GET("/job-versions/:job_name", controllers.GetJobVersion)
+		authenticated.PUT("/job-versions", controllers.SetJobVersion)
+		authenticated.POST("/job-versions/:job_name/sync", controllers.SyncJobVersion)
+		authenticated.POST("/job-versions/auto-sync", controllers.AutoSyncJobVersions)
+
 		// 测试项相关
 		authenticated.GET("/test-items", testItemController.GetTestItems)
 		authenticated.GET("/test-items/:id", testItemController.GetTestItem)
@@ -65,6 +72,9 @@ func SetupAPIRoutes(router *gin.Engine) {
 			admin.DELETE("/builds/:id", buildInfoController.DeleteBuildInfo)
 			admin.POST("/builds/job-names", buildInfoController.AddJobName)
 			admin.DELETE("/builds/job-names/:job_name", buildInfoController.DeleteJobName)
+
+			// Job版本选择管理（仅管理员可删除）
+			admin.DELETE("/job-versions/:job_name", controllers.DeleteJobVersion)
 
 			// 测试项管理
 			admin.POST("/test-items", testItemController.CreateTestItem)

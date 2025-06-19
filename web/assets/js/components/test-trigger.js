@@ -5,7 +5,7 @@ import { BuildInfo } from './build-info.js';
 class TestTrigger {
     static testItems = [];
     static expandedItems = new Set();
-    static currentGlobalVersion = null; // Current globally selected version from BuildInfo
+    static jobVersions = new Map(); // job_name -> selected_build_info from BuildInfo
 
     static async loadTestItems() {
         try {
@@ -18,12 +18,26 @@ class TestTrigger {
         }
     }
 
-    // Handler for global version changes from BuildInfo
-    static onGlobalVersionChanged(version) {
-        this.currentGlobalVersion = version;
-        console.log('Global version changed to:', version ? `${version.job_name} #${version.build_number}` : 'null');
-        // Re-render to show only associated items and update UI
+    // Handler for job version changes from BuildInfo
+    static onJobVersionsChanged(jobVersions) {
+        this.jobVersions = jobVersions;
+        console.log('Job versions changed:', Array.from(jobVersions.entries()).map(([job, version]) => `${job}: #${version.build_number}`));
+        // Re-render to show only items with associated versions
         this.renderTestItems();
+    }
+
+    static onJobVersionChanged(jobName, version) {
+        this.jobVersions.set(jobName, version);
+        console.log(`Job version changed for ${jobName}:`, version ? `#${version.build_number}` : 'null');
+        // Re-render to update specific item
+        this.renderTestItems();
+    }
+
+    static getItemVersion(item) {
+        if (!item.associated_job_name) {
+            return null; // Item not associated with any job
+        }
+        return this.jobVersions.get(item.associated_job_name) || null;
     }
 
     static async createTestItem(name) {
@@ -57,13 +71,23 @@ class TestTrigger {
 
         const html = this.testItems.map(item => {
             const isExpanded = this.expandedItems.has(item.id);
+            const itemVersion = this.getItemVersion(item);
             
-            // Generate version info based on global version and item association
+            // Generate version info based on item's associated job version
             let versionInfoHtml = '';
             let canTrigger = false;
             
-            if (this.currentGlobalVersion) {
-                const buildTime = new Date(this.currentGlobalVersion.created_at);
+            if (!item.associated_job_name) {
+                // Item not associated with any job
+                versionInfoHtml = `
+                    <div class="mt-2 text-xs text-gray-500 bg-gray-50 px-3 py-1 rounded border border-gray-100">
+                        <i class="fas fa-info-circle mr-1 text-gray-500"></i>
+                        此测试项未关联到任何构建任务，请先关联构建
+                    </div>
+                `;
+                canTrigger = false;
+            } else if (itemVersion) {
+                const buildTime = new Date(itemVersion.created_at);
                 const year = buildTime.getFullYear();
                 const month = String(buildTime.getMonth() + 1).padStart(2, '0');
                 const day = String(buildTime.getDate()).padStart(2, '0');
@@ -71,31 +95,20 @@ class TestTrigger {
                 const minutes = String(buildTime.getMinutes()).padStart(2, '0');
                 const formattedTime = `${year}${month}${day}-${hours}:${minutes}`;
                 
-                // Check if item is associated with current version or has no association
-                const isAssociated = !item.associated_job_name || item.associated_job_name === this.currentGlobalVersion.job_name;
-                canTrigger = isAssociated;
+                canTrigger = true;
                 
-                if (isAssociated) {
-                    versionInfoHtml = `
-                        <div class="mt-2 text-xs text-gray-600 bg-blue-50 px-3 py-1 rounded border border-blue-100">
-                            <i class="fas fa-check-circle mr-1 text-green-500"></i>
-                            当前测试版本: ${this.currentGlobalVersion.job_name} #${this.currentGlobalVersion.build_number} - ${this.currentGlobalVersion.build_user} ${formattedTime}
-                            ${this.currentGlobalVersion.package_path ? ` - ${this.currentGlobalVersion.package_path}` : ''}
-                        </div>
-                    `;
-                } else {
-                    versionInfoHtml = `
-                        <div class="mt-2 text-xs text-gray-600 bg-yellow-50 px-3 py-1 rounded border border-yellow-100">
-                            <i class="fas fa-exclamation-triangle mr-1 text-yellow-500"></i>
-                            此测试项关联到: ${item.associated_job_name}, 当前版本: ${this.currentGlobalVersion.job_name} #${this.currentGlobalVersion.build_number}
-                        </div>
-                    `;
-                }
+                versionInfoHtml = `
+                    <div class="mt-2 text-xs text-gray-600 bg-blue-50 px-3 py-1 rounded border border-blue-100">
+                        <i class="fas fa-check-circle mr-1 text-green-500"></i>
+                        当前测试版本: ${itemVersion.job_name} #${itemVersion.build_number} - ${itemVersion.build_user} ${formattedTime}
+                        ${itemVersion.package_path ? ` - ${itemVersion.package_path}` : ''}
+                    </div>
+                `;
             } else {
                 versionInfoHtml = `
                     <div class="mt-2 text-xs text-gray-500 bg-gray-50 px-3 py-1 rounded border border-gray-100">
                         <i class="fas fa-info-circle mr-1 text-gray-500"></i>
-                        请先在构建信息页面选择一个版本
+                        请先在构建信息页面为 ${item.associated_job_name} 选择一个版本
                     </div>
                 `;
             }
@@ -516,16 +529,16 @@ class TestTrigger {
 
 
     static async triggerTest(itemId) {
-        // Use global selected version
-        if (!this.currentGlobalVersion) {
-            alert('请先在构建信息页面选择一个版本');
+        const item = this.testItems.find(t => t.id === itemId);
+        if (!item) {
+            alert('测试项不存在');
             return;
         }
-        
-        // Check if item is compatible with current version
-        const item = this.testItems.find(t => t.id === itemId);
-        if (item && item.associated_job_name && item.associated_job_name !== this.currentGlobalVersion.job_name) {
-            alert(`此测试项关联到 "${item.associated_job_name}"，当前选择的版本是 "${this.currentGlobalVersion.job_name}"。请选择正确的版本或修改测试项关联。`);
+
+        // Use job-specific selected version
+        const itemVersion = this.getItemVersion(item);
+        if (!itemVersion) {
+            alert(`请先在构建信息页面为 ${item.associated_job_name || '此测试项'} 选择一个版本`);
             return;
         }
 
@@ -540,13 +553,13 @@ class TestTrigger {
             const paramSelect = document.querySelector(`.parameter-select[data-item-id="${itemId}"]`);
             const parameterSetId = paramSelect && paramSelect.value ? parseInt(paramSelect.value) : null;
             
-            await API.triggerDeployTest(itemId, this.currentGlobalVersion.id, parameterSetId);
+            await API.triggerDeployTest(itemId, itemVersion.id, parameterSetId);
             
             // Show success message
             if (window.app && window.app.showSuccess) {
-                window.app.showSuccess('测试已触发，请查看执行历史');
+                window.app.showSuccess(`测试已触发 (使用版本: ${itemVersion.job_name} #${itemVersion.build_number})，请查看执行历史`);
             } else {
-                alert('测试已触发，请查看执行历史');
+                alert(`测试已触发 (使用版本: ${itemVersion.job_name} #${itemVersion.build_number})，请查看执行历史`);
             }
             
             // 如果历史记录是展开的，刷新它

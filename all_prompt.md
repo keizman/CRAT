@@ -484,3 +484,9 @@ build info 构建 card 可以选择 version， 逻辑： - 在用户访问 /buil
 版本时同步的是关联的 item 信息，不是所有的。 未关联的不展示数据即可。 可以考虑在数据库添加新的字段来持久化选择的版本。
 请确保在执行数据库操作前先读 schema.sql 了解现有架构。
 Look for a build info controller file in the controllers directory or any file that handles build info related API endpoints.
+
+------
+
+描述一下 /tests 和 /builds 选择版本进行测试的方式是怎样的， 如何选择一个版本进行测试
+我发现当前 选择版本按钮 是全局生效的，如果有多个 items 时会导致公用了这个， 探讨一下如何每一个 item 关联的 job name 管理自己的version
+选择方案二开始coding ，同时能解决， /builds 界面选择版本时刻处于选择状态问题， 我的要求时处理好版本选择状态， /tests 页面的item 若未关联 ver 不显示内容即可。

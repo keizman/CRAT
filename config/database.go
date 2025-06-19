@@ -4,6 +4,8 @@ import (
 	"log"
 	"time"
 
+	"crat/models"
+
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -32,7 +34,21 @@ func InitDatabase() {
 	sqlDB.SetMaxOpenConns(AppConfig.Database.MaxOpenConn)
 	sqlDB.SetConnMaxLifetime(time.Duration(AppConfig.Database.MaxLifetime) * time.Minute)
 
-	log.Println("Database connected successfully")
+	// 自动迁移数据库结构
+	err = DB.AutoMigrate(
+		&models.BuildInfo{},
+		&models.TestItem{},
+		&models.SystemSetting{},
+		&models.UserSession{},
+		&models.ParameterSet{},
+		&models.DeployTestRun{},
+		&models.JobVersionSelection{}, // 新增的模型
+	)
+	if err != nil {
+		log.Fatalf("Failed to migrate database: %v", err)
+	}
+
+	log.Println("Database connected and migrated successfully")
 }
 
 func CloseDatabase() {

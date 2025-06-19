@@ -95,6 +95,24 @@ CREATE TABLE deploy_test_runs (
 );
 
 -- 创建索引
+CREATE INDEX idx_deploy_test_runs_test_item_id ON deploy_test_runs(test_item_id);
+CREATE INDEX idx_deploy_test_runs_build_info_id ON deploy_test_runs(build_info_id);
+CREATE INDEX idx_deploy_test_runs_status ON deploy_test_runs(status);
+CREATE INDEX idx_deploy_test_runs_started_at ON deploy_test_runs(started_at DESC);
+
+-- 7. Job版本选择表
+CREATE TABLE IF NOT EXISTS job_version_selections (
+    id BIGSERIAL PRIMARY KEY,
+    job_name VARCHAR(255) UNIQUE NOT NULL,
+    selected_build_id BIGINT REFERENCES build_info(id) ON DELETE SET NULL,
+    auto_sync_enabled BOOLEAN DEFAULT true,
+    last_sync_time TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 创建索引
+CREATE INDEX IF NOT EXISTS idx_job_version_selections_job_name ON job_version_selections(job_name);
+
 -- 插入示例数据
 
 -- 示例构建信息
@@ -125,3 +143,16 @@ ON CONFLICT (name) DO UPDATE SET
     description = EXCLUDED.description,
     associated_job_name = EXCLUDED.associated_job_name,
     notification_enabled = EXCLUDED.notification_enabled;
+
+-- 初始化job版本选择（选择每个job的最新构建）
+INSERT INTO job_version_selections (job_name, selected_build_id, last_sync_time)
+SELECT 
+    bi.job_name,
+    bi.id as selected_build_id,
+    NOW() as last_sync_time
+FROM (
+    SELECT DISTINCT job_name,
+           FIRST_VALUE(id) OVER (PARTITION BY job_name ORDER BY created_at DESC) as id
+    FROM build_info
+) bi
+ON CONFLICT (job_name) DO NOTHING;

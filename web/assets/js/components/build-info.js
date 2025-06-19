@@ -5,8 +5,9 @@ import { Settings } from './settings.js';
 class BuildInfo {
     static jobNames = [];
     static buildInfoMap = new Map();
-    static selectedVersion = null; // Global selected version
-    static lastSyncTime = null; // Last sync time for 24h sync logic
+    static jobVersions = new Map(); // job_name -> selected_build_info
+    static lastSyncTimes = new Map(); // job_name -> last_sync_timestamp
+    static buildDataMap = new Map(); // build_id -> build_data for easy access
 
     static async loadJobNames() {
         try {
@@ -51,14 +52,19 @@ class BuildInfo {
             
             // 存储到 map 中
             this.buildInfoMap.clear();
+            this.buildDataMap.clear();
             results.forEach(result => {
                 this.buildInfoMap.set(result.jobName, result.builds);
+                // Store individual build data for easy access
+                result.builds.forEach(build => {
+                    this.buildDataMap.set(build.id, build);
+                });
             });
 
             this.renderBuildInfoList();
 
-            // Initialize selected version with latest build if needed
-            this.initializeSelectedVersion();
+            // Initialize job-specific version selections
+            await this.initializeJobVersions();
         } catch (error) {
             console.error('Failed to load build info list:', error);
             const container = document.getElementById('buildInfoList');
@@ -71,102 +77,123 @@ class BuildInfo {
         }
     }
 
-    static initializeSelectedVersion() {
-        // Check if we need to sync (24h logic)
-        const now = Date.now();
-        const lastSync = localStorage.getItem('crat_last_version_sync');
-        const shouldSync = !lastSync || (now - parseInt(lastSync)) > 24 * 60 * 60 * 1000;
+    static async initializeJobVersions() {
+        // Load existing job version selections from API
+        try {
+            const response = await API.getAllJobVersions();
+            const existingSelections = response.data || [];
+            
+            // Build map of existing selections
+            const existingMap = new Map();
+            existingSelections.forEach(selection => {
+                if (selection.selected_build) {
+                    existingMap.set(selection.job_name, selection.selected_build);
+                    if (selection.last_sync_time) {
+                        this.lastSyncTimes.set(selection.job_name, new Date(selection.last_sync_time).getTime());
+                    }
+                }
+            });
 
-        if (shouldSync || !this.selectedVersion) {
-            // Find the latest build across all jobs ordered by create_time
-            let latestBuild = null;
-            let latestTime = 0;
+            const now = Date.now();
+            
+            // Process each job
+            for (const [jobName, builds] of this.buildInfoMap) {
+                if (builds.length === 0) continue;
 
+                const existingSelection = existingMap.get(jobName);
+                const lastSync = this.lastSyncTimes.get(jobName) || 0;
+                const shouldSync = !lastSync || (now - lastSync) > 24 * 60 * 60 * 1000;
+
+                if (shouldSync || !existingSelection) {
+                    // Auto-sync to latest build for this job
+                    const latestBuild = builds[0]; // builds are already sorted by created_at DESC
+                    await this.setJobVersion(jobName, latestBuild, true); // auto-sync = true
+                    console.log(`Auto-synced ${jobName} to latest build #${latestBuild.build_number}`);
+                } else {
+                    // Use existing selection
+                    this.jobVersions.set(jobName, existingSelection);
+                }
+            }
+
+            // Notify test trigger component about all job versions
+            if (window.TestTrigger) {
+                window.TestTrigger.onJobVersionsChanged(this.jobVersions);
+            }
+        } catch (error) {
+            console.error('Failed to initialize job versions:', error);
+            // Fallback: auto-select latest build for each job
+            const now = Date.now();
             for (const [jobName, builds] of this.buildInfoMap) {
                 if (builds.length > 0) {
-                    const buildTime = new Date(builds[0].created_at).getTime();
-                    if (buildTime > latestTime) {
-                        latestTime = buildTime;
-                        latestBuild = builds[0];
-                    }
+                    const latestBuild = builds[0];
+                    this.jobVersions.set(jobName, latestBuild);
+                    this.lastSyncTimes.set(jobName, now);
                 }
             }
-
-            if (latestBuild && shouldSync) {
-                this.selectedVersion = latestBuild;
-                localStorage.setItem('crat_selected_version', JSON.stringify(latestBuild));
-                localStorage.setItem('crat_last_version_sync', now.toString());
-                console.log('Auto-selected latest build:', latestBuild.job_name, '#' + latestBuild.build_number);
-
-                // Notify test trigger component about the global version change
-                if (window.TestTrigger) {
-                    window.TestTrigger.onGlobalVersionChanged(latestBuild);
-                }
-            } else if (!this.selectedVersion) {
-                // Load from localStorage if available
-                const stored = localStorage.getItem('crat_selected_version');
-                if (stored) {
-                    try {
-                        this.selectedVersion = JSON.parse(stored);
-                        // Notify test trigger component
-                        if (window.TestTrigger) {
-                            window.TestTrigger.onGlobalVersionChanged(this.selectedVersion);
-                        }
-                    } catch (e) {
-                        this.selectedVersion = latestBuild;
-                        if (latestBuild && window.TestTrigger) {
-                            window.TestTrigger.onGlobalVersionChanged(latestBuild);
-                        }
-                    }
-                } else {
-                    this.selectedVersion = latestBuild;
-                    if (latestBuild && window.TestTrigger) {
-                        window.TestTrigger.onGlobalVersionChanged(latestBuild);
-                    }
-                }
-            }
-        } else {
-            // Load from localStorage
-            const stored = localStorage.getItem('crat_selected_version');
-            if (stored) {
-                try {
-                    this.selectedVersion = JSON.parse(stored);
-                    // Notify test trigger component
-                    if (window.TestTrigger) {
-                        window.TestTrigger.onGlobalVersionChanged(this.selectedVersion);
-                    }
-                } catch (e) {
-                    console.error('Failed to parse stored version:', e);
-                }
+            if (window.TestTrigger) {
+                window.TestTrigger.onJobVersionsChanged(this.jobVersions);
             }
         }
     }
 
-    static selectVersion(build) {
-        this.selectedVersion = build;
-        localStorage.setItem('crat_selected_version', JSON.stringify(build));
-
-        // Update UI to reflect selection
-        this.updateSelectionDisplay();
-
-        // Notify test trigger component about the version change
-        if (window.TestTrigger) {
-            window.TestTrigger.onGlobalVersionChanged(build);
+    static async selectVersion(build) {
+        try {
+            await this.setJobVersion(build.job_name, build, false); // manual selection
+            
+            // Show success message
+            if (window.app && window.app.showSuccess) {
+                window.app.showSuccess(`已选择版本: ${build.job_name} #${build.build_number}`);
+            } else {
+                alert(`已选择版本: ${build.job_name} #${build.build_number}`);
+            }
+        } catch (error) {
+            console.error('Failed to select version:', error);
+            if (window.app && window.app.showError) {
+                window.app.showError(`选择版本失败: ${error.message || '未知错误'}`);
+            } else {
+                alert(`选择版本失败: ${error.message || '未知错误'}`);
+            }
         }
+    }
 
-        // Show success message
-        if (window.app && window.app.showSuccess) {
-            window.app.showSuccess(`已选择版本: ${build.job_name} #${build.build_number}`);
-        } else {
-            alert(`已选择版本: ${build.job_name} #${build.build_number}`);
+    static async setJobVersion(jobName, build, autoSync = false) {
+        try {
+            // Call API to set job version
+            await API.setJobVersion({
+                job_name: jobName,
+                build_id: build.id,
+                auto_sync: autoSync
+            });
+            
+            // Update local state
+            this.jobVersions.set(jobName, build);
+            this.lastSyncTimes.set(jobName, Date.now());
+            
+            // Update UI
+            this.updateSelectionDisplay();
+            
+            // Notify test trigger component about the specific job version change
+            if (window.TestTrigger) {
+                window.TestTrigger.onJobVersionChanged(jobName, build);
+            }
+        } catch (error) {
+            console.error(`Failed to set job version for ${jobName}:`, error);
+            throw error;
         }
+    }
+    
+    static getJobVersion(jobName) {
+        return this.jobVersions.get(jobName) || null;
     }
 
     static updateSelectionDisplay() {
         // Update selection indicators on all build cards
         document.querySelectorAll('.select-version-btn').forEach(btn => {
             const buildId = parseInt(btn.dataset.buildId);
-            if (this.selectedVersion && buildId === this.selectedVersion.id) {
+            const jobName = btn.dataset.jobName;
+            const selectedBuild = this.jobVersions.get(jobName);
+            
+            if (selectedBuild && buildId === selectedBuild.id) {
                 btn.innerHTML = '<i class="fas fa-check mr-1"></i>已选择';
                 btn.className = btn.className.replace('bg-blue-500 hover:bg-blue-600', 'bg-green-500 hover:bg-green-600');
             } else {
@@ -201,7 +228,8 @@ class BuildInfo {
                 const buildPath = this.generateBuildPath(build);
                 const downloadPath = this.generateDownloadPath(build);
                 
-                const isSelected = this.selectedVersion && this.selectedVersion.id === build.id;
+                const selectedBuild = this.jobVersions.get(jobName);
+                const isSelected = selectedBuild && selectedBuild.id === build.id;
                 
                 return `
                     <div class="bg-gray-50 rounded-lg p-4 border-l-4 border-blue-400 relative">
@@ -220,7 +248,7 @@ class BuildInfo {
                                 </div>
                                 <button class="select-version-btn px-3 py-1 text-xs font-medium text-white rounded-lg transition-all duration-200 ${isSelected ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-500 hover:bg-blue-600'}" 
                                         data-build-id="${build.id}"
-                                        data-build-data='${JSON.stringify(build).replace(/'/g, "&#39;")}'>
+                                        data-job-name="${jobName}">
                                     <i class="fas ${isSelected ? 'fa-check' : 'fa-mouse-pointer'} mr-1"></i>${isSelected ? '已选择' : '选择版本'}
                                 </button>
                             </div>
@@ -338,11 +366,12 @@ class BuildInfo {
         container.querySelectorAll('.select-version-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
-                try {
-                    const buildData = JSON.parse(e.currentTarget.dataset.buildData.replace(/&#39;/g, "'"));
+                const buildId = parseInt(e.currentTarget.dataset.buildId);
+                const buildData = this.buildDataMap.get(buildId);
+                if (buildData) {
                     this.selectVersion(buildData);
-                } catch (error) {
-                    console.error('Failed to parse build data:', error);
+                } else {
+                    console.error('Build data not found for ID:', buildId);
                 }
             });
         });

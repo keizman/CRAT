@@ -211,4 +211,29 @@ export class API {
     static async deleteParameterSet(id) {
         return this.delete(`/parameter-sets/${id}`);
     }
+
+    // Job版本选择相关API
+    static async getAllJobVersions() {
+        return this.get('/job-versions');
+    }
+
+    static async getJobVersion(jobName) {
+        return this.get(`/job-versions/${jobName}`);
+    }
+
+    static async setJobVersion(payload) {
+        return this.put('/job-versions', payload);
+    }
+
+    static async syncJobVersion(jobName) {
+        return this.post(`/job-versions/${jobName}/sync`);
+    }
+
+    static async autoSyncJobVersions() {
+        return this.post('/job-versions/auto-sync');
+    }
+
+    static async deleteJobVersion(jobName) {
+        return this.delete(`/job-versions/${jobName}`);
+    }
 }
