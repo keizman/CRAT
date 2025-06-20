@@ -316,21 +316,7 @@ PUT /api/v1/parameter-sets/{id} # 更新参数集
 DELETE /api/v1/parameter-sets/{id} # 删除参数集
 ```
 
-创建参数集示例:
-```json
-{
-  "name": "CDS测试参数",
-  "description": "CDS服务测试参数配置",
-  "parameters": {
-    "service_name": "cds",
-    "install_dir": "/usr/local/cds",
-    "upgrade_type": "full",
-    "test_path": "/opt/test",
-    "base_url": "http://example.com",
-    "report_keyword": "test_report"
-  }
-}
-```
+
 
 ## Jenkins 配置
 
@@ -419,7 +405,7 @@ curl -X POST -H "Content-Type: application/json" \
 ![测试触发页面](image/trigger_test.png)
 
 测试触发页面功能：
-- 选择要测试的服务项目（CDS、SDS、SSGAGENT等）
+- 选择要测试的服务项目
 - 关联已配置的参数集进行自动化测试
 - 一键触发部署测试流程
 - 实时查看测试执行状态和历史记录
@@ -443,14 +429,6 @@ curl -X POST -H "Content-Type: application/json" \
 - 邮件通知相关配置
 - 支持动态修改，无需重启服务
 
-### 界面特色
-- **现代化设计**: 使用 TailwindCSS 构建，界面简洁美观
-- **响应式布局**: 支持不同屏幕尺寸的设备访问
-- **实时更新**: 测试状态和进度实时刷新显示
-- **用户友好**: 操作简单直观，降低自动化测试使用门槛
-- **中文界面**: 完全中文化，便于团队使用
-
-通过这些界面，开发人员可以轻松完成从版本选择、参数配置到测试触发的完整流程，真正实现了"一键触发，自动通知"的自动化测试体验。
 
 ## 数据库表说明
 
