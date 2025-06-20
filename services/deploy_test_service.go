@@ -338,7 +338,8 @@ func (s *DeployTestService) triggerExternalTest(deployTestRun *models.DeployTest
 	if !strings.HasSuffix(testServerURL, "/") {
 		testServerURL += "/"
 	}
-	requestURL := testServerURL + "api/deploy_and_test_mock"
+	// requestURL := testServerURL + "api/deploy_and_test_mock"
+	requestURL := testServerURL + "api/deploy_and_test"
 
 	// 构建请求体
 	requestBody := map[string]interface{}{

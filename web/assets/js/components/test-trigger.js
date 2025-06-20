@@ -7,8 +7,34 @@ class TestTrigger {
     static expandedItems = new Set();
     static jobVersions = new Map(); // job_name -> selected_build_info from BuildInfo
 
+    // Load expanded state from localStorage
+    static loadExpandedState() {
+        try {
+            const saved = localStorage.getItem('testTrigger.expandedItems');
+            if (saved) {
+                const expandedArray = JSON.parse(saved);
+                this.expandedItems = new Set(expandedArray);
+            }
+        } catch (error) {
+            console.warn('Failed to load expanded state:', error);
+            this.expandedItems = new Set();
+        }
+    }
+
+    // Save expanded state to localStorage
+    static saveExpandedState() {
+        try {
+            localStorage.setItem('testTrigger.expandedItems', JSON.stringify(Array.from(this.expandedItems)));
+        } catch (error) {
+            console.warn('Failed to save expanded state:', error);
+        }
+    }
+
     static async loadTestItems() {
         try {
+            // Load expanded state first
+            this.loadExpandedState();
+            
             const response = await API.getTestItems();
             this.testItems = (response.data || []).sort((a, b) => a.name.localeCompare(b.name));
             this.renderTestItems();
@@ -226,6 +252,11 @@ class TestTrigger {
         container.innerHTML = html;
         this.attachEventListeners();
         this.loadParameterSetsForAllItems();
+        
+        // Load history for expanded items
+        this.expandedItems.forEach(itemId => {
+            this.loadDeployTestHistory(itemId);
+        });
     }
 
     static attachEventListeners() {
@@ -480,7 +511,12 @@ class TestTrigger {
             // 默认加载部署测试历史
             this.loadDeployTestHistory(itemId);
         }
-    }    static async loadTestHistory(itemId) {
+        
+        // Save expanded state
+        this.saveExpandedState();
+    }
+
+    static async loadTestHistory(itemId) {
         const historyContent = document.querySelector(`.history-content[data-item-id="${itemId}"]`);
         
         try {
