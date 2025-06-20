@@ -53,7 +53,7 @@ func (p *ParameterSetController) CreateParameterSet(c *gin.Context) {
 // GetParameterSets 获取参数集列表
 func (p *ParameterSetController) GetParameterSets(c *gin.Context) {
 	var parameterSets []models.ParameterSet
-	err := config.DB.Find(&parameterSets).Error
+	err := config.DB.Order("name ASC").Find(&parameterSets).Error
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

@@ -7,7 +7,7 @@ export class ParameterSets {
     static async loadParameterSets() {
         try {
             const response = await API.getParameterSets();
-            this.parameterSets = response.data || [];
+            this.parameterSets = (response.data || []).sort((a, b) => a.name.localeCompare(b.name));
             this.renderParameterSets();
         } catch (error) {
             console.error('Failed to load parameter sets:', error);

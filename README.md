@@ -232,11 +232,12 @@ go run main.go
 
 ### 4. 验证部署
 
-访问 `http://localhost:6000` 应该能看到登录页面。
+访问 `http://localhost:8000` 看到登录页面。
 
 ## API 接口
 
 ### 4.1 构建信息接口 (Jenkins Webhook)
+
 ```
 POST /api/v1/builds
 ```
@@ -339,7 +340,7 @@ DELETE /api/v1/parameter-sets/{id} # 删除参数集
 2. 配置如下:
 
 **使用 HTTP Request Plugin:**
-- URL: `http://your-crat-server:6000/api/v1/builds`
+- URL: `http://your-crat-server:8000/api/v1/builds`
 - HTTP Mode: POST
 - Content Type: application/json
 - Request Body:
@@ -361,7 +362,7 @@ curl -X POST -H "Content-Type: application/json" \
            \"PACKAGE_PATH\": \"${PACKAGE_PATH}\",
            \"BUILD_NUMBER\": \"${BUILD_NUMBER}\"
          }" \
-     "http://your-crat-server:6000/api/v1/builds"
+     "http://your-crat-server:8000/api/v1/builds"
 ```
 
 ## 用户角色
@@ -657,15 +658,6 @@ CREATE TABLE user_sessions (
    - 支持动态项目名称配置
    - 可配置的构建路径基础URL
 
-## 开发说明
-
-### 开发环境启动
-```bash
-# 启动开发模式（自动重载）
-go run main.go
-
-
-```
 
 ### 前端开发
 前端使用原生 JavaScript + TailwindCSS，无需复杂的构建过程。
@@ -695,62 +687,6 @@ go run main.go
    - 确认邮箱服务器允许应用登录
    - 可能需要使用应用专用密码
 
-## 架构更新说明
-
-### 简化后的架构
-在最新版本中，我们简化了系统架构，移除了复杂的请求模板机制，采用内置的部署测试逻辑：
-
-**移除的组件：**
-- `test_service.go` - 旧的基于模板的测试服务
-- `request_template.go` - 请求模板模型
-- `test_run.go` - 旧的测试运行记录模型
-- 相关的API路由和前端功能
-
-**保留并增强的组件：**
-- `deploy_test_service.go` - 核心的部署测试服务
-- `deploy_test_run.go` - 部署测试运行记录
-- 统一的前端"触发测试"按钮（现在调用部署测试API）
-
-### 用户体验改进
-- **一致的界面**: 用户仍然看到"触发测试"按钮，无需了解底层架构变化
-- **更强大的功能**: 所有测试都使用完整的部署测试流程
-- **更好的监控**: 步骤级别的状态追踪和详细的错误信息
-- **简化的配置**: 无需配置复杂的请求模板
-
-### 数据库迁移
-如果您正在从旧版本升级，请执行以下迁移脚本：
-```sql
--- 执行 database/migration_remove_old_tables.sql
--- 这将删除旧的表结构并更新测试项配置
-```
-
-### 开发建议
-- 新的部署测试是异步执行的，确保外部测试服务器能够处理长时间运行的任务
-- 监控配置是可调的，可以根据实际测试时长调整参数
-- 所有测试状态和步骤都有详细记录，便于问题排查
-
----
-
-## 版本历史
-
-### v2.1.0 (当前版本)
-- 🎯 **版本管理重构**: 独立的作业版本选择和自动同步机制
-- 📋 **参数集管理**: 灵活的测试参数配置和模板化管理
-- 📧 **通知系统增强**: 富HTML邮件通知，包含详细测试报告摘要
-- 🎨 **前端现代化**: Vite构建系统，TailwindCSS集成，Chart.js图表
-- 🔧 **API扩展**: 新增作业版本管理和参数集管理API端点
-- 🗄️ **数据库扩展**: 新增job_version_selections和parameter_sets表
-
-### v2.0.0
-- 🔄 架构重构：移除请求模板，统一使用部署测试
-- 🚀 功能增强：完整的下载-部署-测试-监控流程
-- 📊 监控改进：步骤级别的状态追踪
-- 🎯 用户体验：简化的界面，保持一致的操作方式
-- 🗄️ 数据库优化：移除冗余表，简化数据结构
-
-### v1.x.x (已弃用)
-- 基于请求模板的测试触发机制
-- 分离的普通测试和部署测试功能
 
 ---
 

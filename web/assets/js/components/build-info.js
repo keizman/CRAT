@@ -378,16 +378,54 @@ class BuildInfo {
     }
 
     static toggleJobBuilds(jobName) {
-        const content = document.querySelector(`.build-content[data-job="${jobName}"]`);
-        const toggleIcon = document.querySelector(`.toggle-btn[data-job="${jobName}"] i`);
+        // Find the clicked job card
+        const clickedJobCard = document.querySelector(`.bento-card:has(.toggle-btn[data-job="${jobName}"])`);
+        if (!clickedJobCard) return;
         
-        if (content.style.display === 'none') {
-            content.style.display = 'block';
-            toggleIcon.style.transform = 'rotate(180deg)';
+        // Find the parent grid container
+        const gridContainer = clickedJobCard.parentElement;
+        if (!gridContainer) return;
+        
+        // Get all job cards in the grid
+        const allJobCards = Array.from(gridContainer.children);
+        
+        // Find the index of the clicked card
+        const clickedIndex = allJobCards.indexOf(clickedJobCard);
+        
+        // Determine row cards (for 2-column layout)
+        let rowCards = [];
+        if (window.innerWidth >= 1024) { // lg breakpoint for 2-column layout
+            // Calculate which cards are in the same row (2 cards per row)
+            const rowIndex = Math.floor(clickedIndex / 2);
+            const startIndex = rowIndex * 2;
+            const endIndex = Math.min(startIndex + 2, allJobCards.length);
+            rowCards = allJobCards.slice(startIndex, endIndex);
         } else {
-            content.style.display = 'none';
-            toggleIcon.style.transform = 'rotate(0deg)';
+            // On smaller screens, only toggle the clicked card (1 column layout)
+            rowCards = [clickedJobCard];
         }
+        
+        // Get the current state of the clicked card
+        const clickedContent = clickedJobCard.querySelector('.build-content');
+        const isCurrentlyExpanded = clickedContent.style.display !== 'none';
+        
+        // Toggle all cards in the same row
+        rowCards.forEach(card => {
+            const content = card.querySelector('.build-content');
+            const toggleIcon = card.querySelector('.toggle-btn i');
+            
+            if (content && toggleIcon) {
+                if (isCurrentlyExpanded) {
+                    // Collapse
+                    content.style.display = 'none';
+                    toggleIcon.style.transform = 'rotate(0deg)';
+                } else {
+                    // Expand
+                    content.style.display = 'block';
+                    toggleIcon.style.transform = 'rotate(180deg)';
+                }
+            }
+        });
     }
 
     static async loadMoreBuilds(jobName) {
