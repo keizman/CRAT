@@ -1,0 +1,55 @@
+name: CRAT Linux Release
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: 'reason'
+        required: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - name: Build Frontend
+        env:
+          CI: ""
+        run: |
+          cd web
+          npm install
+          npm run build
+          cd ..
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '>=1.18.0'
+      - name: Build Backend (amd64)
+        run: |
+          go mod download
+          go build -ldflags "-s -w" -o crat
+
+      - name: Build Backend (arm64)
+        run: |
+          sudo apt-get update
+          DEBIAN_FRONTEND=noninteractive sudo apt-get install -y gcc-aarch64-linux-gnu
+          CC=aarch64-linux-gnu-gcc CGO_ENABLED=1 GOOS=linux GOARCH=arm64 go build -ldflags "-s -w" -o crat-arm64
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            crat
+            crat-arm64
+          draft: true
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,3 +1,5 @@
+[TOC]
+
 # CRAT - CDN 自动化测试触发平台
 
 一个接收 CI 系统（如 Jenkins）构建信息的 Web 平台，允许用户管理构建版本、配置并触发自动化部署测试，同时监控测试结果并发送通知。
@@ -23,6 +25,19 @@
 - 3.等待收到邮箱信息后查看统计结果
 有任何问题随时反馈
 
+## 这个项目的设计路径是什么
+> **项目简称**：以下将此平台简称为 **CRAT** (CDN Regression Automation Trigger)
+
+### 演进路线
+#### V1 原型方案
+- **核心思路**：在 Jenkins 构建页面直接集成测试选项
+
+希望直接在 jenkins build page 添加一个单选项， 以此让开发在构建时直接勾选即可测试。 但依旧需要又收集测试报告， 通知构建人且无论如何不能影响构建时长和构建结果。 这些问题的解决可能需要一个新的 server 端来实现
+
+#### V2 最终方案
+v2：解决 v1 的问题依旧需要一个平台， 那何不直接全部都由平台触发，jenkins 只充当一个通知的作用（通过 http 请求附带构建包信息参数）， 虽然开发/测试执行人员依旧需要移步新平台，但好处明显，新平台与 jenkins 平台完全解耦
+
+> **平台原理示意图**详见 [工作流程](#工作流程) 章节，**Jenkins 集成配置**请参见 [Jenkins 配置](#jenkins-配置) 章节
 
 ## 核心功能
 
@@ -320,7 +335,7 @@ DELETE /api/v1/parameter-sets/{id} # 删除参数集
 
 ## Jenkins 配置
 
-### 在 Jenkins Job 中添加 Post-build Actions
+### 在 Jenkins Job 中添加 Post-build Actions/excute shell 来实现发送请求数据
 
 1. 选择 "HTTP Request" 或使用 curl 命令
 2. 配置如下:
