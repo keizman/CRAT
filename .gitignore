@@ -82,8 +82,6 @@ certificates/
 *.pem
 *.key
 *.crt 
-go.mod
-go.sum
 not_in_porject_trigger_server.py
 .cursor/rules/max-requests.mdc
 tmp.md
