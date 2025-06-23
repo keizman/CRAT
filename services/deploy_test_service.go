@@ -408,6 +408,19 @@ func (s *DeployTestService) monitorTestProgress(deployTestRun *models.DeployTest
 		s.addStep(deployTestRun.ID, models.StepMonitor, "FAILED", "", err.Error())
 		return err
 	}
+
+	// 获取测试项信息以检查test_path
+	var testItem models.TestItem
+	if err := config.DB.First(&testItem, deployTestRun.TestItemID).Error; err != nil {
+		return err
+	}
+
+	// 获取测试参数以检查test_path
+	params, err := s.getTestParameters(deployTestRun.ParameterSetID, &testItem)
+	if err != nil {
+		s.addStep(deployTestRun.ID, models.StepMonitor, "FAILED", "", fmt.Sprintf("Failed to get test parameters: %v", err))
+		return err
+	}
 	// 获取系统设置
 	settings, err := s.systemUtils.GetSystemSettings()
 	if err != nil {
@@ -463,11 +476,13 @@ func (s *DeployTestService) monitorTestProgress(deployTestRun *models.DeployTest
 
 		switch status {
 		case "completed":
-			// 提取报告URL
+			// 检查是否为仅部署模式 (test_path == "deploy")
+			isDeployOnly := params.TestPath == "deploy"
+			
 			var reportURL string
 			if result, ok := taskStatus["result"].(map[string]interface{}); ok {
 				if testResult, ok := result["test"].(map[string]interface{}); ok {
-					if url, ok := testResult["report_url"].(string); ok {
+					if url, ok := testResult["report_url"].(string); ok && url != "None" {
 						reportURL = url
 					}
 				}
@@ -476,16 +491,27 @@ func (s *DeployTestService) monitorTestProgress(deployTestRun *models.DeployTest
 			// 存储原始响应数据
 			responseRawData, _ := json.Marshal(taskStatus)
 
+			// 根据是否为仅部署模式选择不同的状态
+			var finalStatus string
+			var stepMessage string
+			if isDeployOnly {
+				finalStatus = models.DeployTestStatusDeployComplete
+				stepMessage = "Deploy completed successfully"
+			} else {
+				finalStatus = models.DeployTestStatusCompleted
+				stepMessage = fmt.Sprintf("Test completed, report URL: %s", reportURL)
+			}
+
 			// 更新记录
 			updates := map[string]interface{}{
-				"status":            models.DeployTestStatusCompleted,
+				"status":            finalStatus,
 				"report_url":        reportURL,
 				"response_raw_data": responseRawData,
 				"finished_at":       time.Now(),
 			}
 			config.DB.Model(&models.DeployTestRun{}).Where("id = ?", deployTestRun.ID).Updates(updates)
 
-			s.addStep(deployTestRun.ID, models.StepMonitor, "COMPLETED", fmt.Sprintf("Test completed, report URL: %s", reportURL), "")
+			s.addStep(deployTestRun.ID, models.StepMonitor, "COMPLETED", stepMessage, "")
 			return nil
 
 		case "failed":
@@ -520,14 +546,20 @@ func (s *DeployTestService) monitorTestProgress(deployTestRun *models.DeployTest
 func (s *DeployTestService) sendNotification(deployTestRun *models.DeployTestRun, testItem *models.TestItem, buildInfo *models.BuildInfo) {
 	s.addStep(deployTestRun.ID, models.StepNotify, "RUNNING", "Sending notification", "")
 
-	if !testItem.NotificationEnabled {
-		s.addStep(deployTestRun.ID, models.StepNotify, "COMPLETED", "Notification disabled for this test item", "")
-		return
-	}
-
 	// 从数据库重新加载以获取最新状态
 	if err := config.DB.First(deployTestRun, deployTestRun.ID).Error; err != nil {
 		s.addStep(deployTestRun.ID, models.StepNotify, "FAILED", "", fmt.Sprintf("Failed to reload deploy test run: %v", err))
+		return
+	}
+
+	// 检查是否为仅部署模式，仅部署模式不发送邮件通知
+	if deployTestRun.Status == models.DeployTestStatusDeployComplete {
+		s.addStep(deployTestRun.ID, models.StepNotify, "COMPLETED", "Deploy complete - no notification required", "")
+		return
+	}
+
+	if !testItem.NotificationEnabled {
+		s.addStep(deployTestRun.ID, models.StepNotify, "COMPLETED", "Notification disabled for this test item", "")
 		return
 	}
 

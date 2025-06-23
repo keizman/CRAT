@@ -66,14 +66,15 @@ type DeployTestStep struct {
 // 常量定义
 const (
 	// 状态常量
-	DeployTestStatusPending     = "PENDING"
-	DeployTestStatusDownloading = "DOWNLOADING"
-	DeployTestStatusDownloaded  = "DOWNLOADED"
-	DeployTestStatusDeploying   = "DEPLOYING"
-	DeployTestStatusTesting     = "TESTING"
-	DeployTestStatusMonitoring  = "MONITORING"
-	DeployTestStatusCompleted   = "COMPLETED"
-	DeployTestStatusFailed      = "FAILED"
+	DeployTestStatusPending       = "PENDING"
+	DeployTestStatusDownloading   = "DOWNLOADING"
+	DeployTestStatusDownloaded    = "DOWNLOADED"
+	DeployTestStatusDeploying     = "DEPLOYING"
+	DeployTestStatusTesting       = "TESTING"
+	DeployTestStatusMonitoring    = "MONITORING"
+	DeployTestStatusCompleted     = "COMPLETED"
+	DeployTestStatusDeployComplete = "DEPLOY_COMPLETE"
+	DeployTestStatusFailed        = "FAILED"
 
 	// 步骤名称常量
 	StepDownload = "download"

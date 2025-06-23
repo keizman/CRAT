@@ -510,3 +510,28 @@ WHERE id=3;
 ----
 
 优化此文本 markdown 显示格式， 但不要改变原有文本描述
+
+
+
+----
+
+修改， 当 param 为以下条件时进行特殊处理 test_path == "deploy" 代表只希望部署， 而部署没有所谓的测试报告。 下方我提供一个示例的 当test_path == "deploy"   服务返回示例， 之后帮我做如下处理
+1.新的处理状态 Deploy complete 
+2.新的处理状态不发送邮件， 不显示 preview 按钮， 完全独立于之前的 complete 状态于逻辑， 只为展示用户部署确实成功 (无需paramter set 相关逻辑)
+{
+"task_id": "4bd7ab97-8823-472a-9148-c44b13068af4",
+"status": "completed",
+"start_time": "2025-06-20 02:06:45",
+"end_time": "2025-06-20 02:07:45",
+"result": {
+  "deploy": {
+	"service": "CDS",
+	"upgrade_type": "full",
+	"success": true
+  },
+  "test":  {"skipped": True, "reason": "test_path is 'deploy'", "report_url": "None"}
+},
+"error": null
+},
+
+在你开始修改之前， 你应该以触发接口 deploy_and_test 为如何先了解这如何修改

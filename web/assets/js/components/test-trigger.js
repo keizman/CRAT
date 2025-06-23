@@ -987,7 +987,7 @@ class TestTrigger {
                             <button class="deploy-details-btn text-blue-600 hover:text-blue-800" data-run-id="${run.id}">
                                 <i class="fas fa-info-circle"></i>
                             </button>
-                            ${run.report_url ? `
+                            ${run.report_url && run.status !== 'DEPLOY_COMPLETE' ? `
                                 <a href="${run.report_url}" target="_blank" class="text-green-600 hover:text-green-800">
                                     <i class="fas fa-external-link-alt mr-1"></i>Report
                                 </a>
@@ -1038,6 +1038,7 @@ class TestTrigger {
             'TESTING': 'fa-flask',
             'MONITORING': 'fa-eye',
             'COMPLETED': 'fa-check-circle',
+            'DEPLOY_COMPLETE': 'fa-rocket',
             'FAILED': 'fa-times-circle'
         };
         return icons[status] || 'fa-question-circle';
@@ -1052,6 +1053,7 @@ class TestTrigger {
             'TESTING': 'text-purple-600 bg-purple-50',
             'MONITORING': 'text-indigo-600 bg-indigo-50',
             'COMPLETED': 'text-green-600 bg-green-50',
+            'DEPLOY_COMPLETE': 'text-emerald-600 bg-emerald-50',
             'FAILED': 'text-red-600 bg-red-50'
         };
         return colors[status] || 'text-gray-600 bg-gray-50';
