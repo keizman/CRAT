@@ -121,6 +121,7 @@ func (s *BuildService) GetJobNames() ([]string, error) {
 	var jobNames []string
 	err := config.DB.Model(&models.BuildInfo{}).
 		Distinct("job_name").
+		Order("job_name ASC").
 		Pluck("job_name", &jobNames).Error
 	return jobNames, err
 }

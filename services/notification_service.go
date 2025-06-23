@@ -74,6 +74,15 @@ func (n *NotificationService) SendTestSuccessNotification(email, testName string
 		buildPath = fmt.Sprintf("http://192.168.1.199:8080/job/%s/%d", buildInfo.JobName, buildInfo.BuildNumber)
 	}
 
+	// 包下载路径
+	var packageDownloadPath string
+	var downloadSetting models.SystemSetting
+	if err := config.DB.Where("key = ?", "package_download_base_url").First(&downloadSetting).Error; err == nil && downloadSetting.Value != "" {
+		packageDownloadPath = fmt.Sprintf("%s%s", downloadSetting.Value, buildInfo.PackagePath)
+	} else {
+		packageDownloadPath = buildInfo.PackagePath
+	}
+
 	// 当前时间
 	currentTime := time.Now().Format("2006-01-02 15:04:05")
 
@@ -95,6 +104,7 @@ func (n *NotificationService) SendTestSuccessNotification(email, testName string
 				<h2 style="color: #28a745;">🎉 测试执行成功</h2>
 				<div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0;">
 					<p><strong>测试项目:</strong> %s</p>
+					<p><strong>测试版本:</strong> <a href="%s" target="_blank" style="color: #007bff;">%s</a></p>
 					<p><strong>构建路径:</strong> <a href="%s" target="_blank" style="color: #007bff;">%s</a></p>
 					<p><strong>执行时间:</strong> %s</p>
 				</div>
@@ -107,14 +117,38 @@ func (n *NotificationService) SendTestSuccessNotification(email, testName string
 			</div>
 		</body>
 		</html>
-	`, testName, buildPath, buildPath, currentTime, summaryHTML, getReportLink(reportURL), projectName)
+	`, testName, packageDownloadPath, packageDownloadPath, buildPath, buildPath, currentTime, summaryHTML, getReportLink(reportURL), projectName)
 
 	return n.SendEmailNotification(email, subject, body)
 }
 
 // SendTestFailureNotification 发送测试失败通知
-func (n *NotificationService) SendTestFailureNotification(email, testName, buildInfo, errorMsg string) error {
+func (n *NotificationService) SendTestFailureNotification(email, testName string, buildInfo *models.BuildInfo, errorMsg string) error {
 	subject := fmt.Sprintf("❌ 测试失败 - %s", testName)
+
+	// 获取项目名称
+	projectName := n.getProjectName()
+
+	// 构建路径
+	var buildPath string
+	var setting models.SystemSetting
+	if err := config.DB.Where("key = ?", "package_build_info_base_url").First(&setting).Error; err == nil && setting.Value != "" {
+		buildPath = fmt.Sprintf("%s%s/%d", setting.Value, buildInfo.JobName, buildInfo.BuildNumber)
+	} else {
+		buildPath = fmt.Sprintf("http://192.168.1.199:8080/job/%s/%d", buildInfo.JobName, buildInfo.BuildNumber)
+	}
+
+	// 包下载路径
+	var packageDownloadPath string
+	var downloadSetting models.SystemSetting
+	if err := config.DB.Where("key = ?", "package_download_base_url").First(&downloadSetting).Error; err == nil && downloadSetting.Value != "" {
+		packageDownloadPath = fmt.Sprintf("%s%s", downloadSetting.Value, buildInfo.PackagePath)
+	} else {
+		packageDownloadPath = buildInfo.PackagePath
+	}
+
+	// 当前时间
+	currentTime := time.Now().Format("2006-01-02 15:04:05")
 
 	body := fmt.Sprintf(`
 		<html>
@@ -123,7 +157,8 @@ func (n *NotificationService) SendTestFailureNotification(email, testName, build
 				<h2 style="color: #dc3545;">❌ 测试执行失败</h2>
 				<div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0;">
 					<p><strong>测试项目:</strong> %s</p>
-					<p><strong>构建信息:</strong> %s</p>
+					<p><strong>测试版本:</strong> <a href="%s" target="_blank" style="color: #007bff;">%s</a></p>
+					<p><strong>构建路径:</strong> <a href="%s" target="_blank" style="color: #007bff;">%s</a></p>
 					<p><strong>执行时间:</strong> %s</p>
 				</div>
 				<div style="background-color: #f8d7da; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #dc3545;">
@@ -132,12 +167,12 @@ func (n *NotificationService) SendTestFailureNotification(email, testName, build
 				</div>
 				<hr style="margin: 20px 0;">
 				<p style="color: #6c757d; font-size: 12px;">
-					本邮件由 CRAT 自动化测试平台自动发送，请勿回复。
+					本邮件由 %s 自动发送，请勿回复。
 				</p>
 			</div>
 		</body>
 		</html>
-	`, testName, buildInfo, "刚刚", errorMsg)
+	`, testName, packageDownloadPath, packageDownloadPath, buildPath, buildPath, currentTime, errorMsg, projectName)
 
 	return n.SendEmailNotification(email, subject, body)
 }

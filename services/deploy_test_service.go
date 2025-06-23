@@ -478,7 +478,7 @@ func (s *DeployTestService) monitorTestProgress(deployTestRun *models.DeployTest
 		case "completed":
 			// 检查是否为仅部署模式 (test_path == "deploy")
 			isDeployOnly := params.TestPath == "deploy"
-			
+
 			var reportURL string
 			if result, ok := taskStatus["result"].(map[string]interface{}); ok {
 				if testResult, ok := result["test"].(map[string]interface{}); ok {
@@ -570,8 +570,8 @@ func (s *DeployTestService) sendNotification(deployTestRun *models.DeployTestRun
 			s.addStep(deployTestRun.ID, models.StepNotify, "COMPLETED", "Success notification sent", "")
 		}
 	} else {
-		buildInfoStr := fmt.Sprintf("%s #%d", buildInfo.JobName, buildInfo.BuildNumber)
-		if err := s.notificationService.SendTestFailureNotification(deployTestRun.TriggeredBy, testItem.Name, buildInfoStr, deployTestRun.ErrorMessage); err != nil {
+		// buildInfoStr := fmt.Sprintf("%s #%d", buildInfo.JobName, buildInfo.BuildNumber)
+		if err := s.notificationService.SendTestFailureNotification(deployTestRun.TriggeredBy, testItem.Name, buildInfo, deployTestRun.ErrorMessage); err != nil {
 			s.addStep(deployTestRun.ID, models.StepNotify, "FAILED", "", fmt.Sprintf("Failed to send failure notification: %v", err))
 		} else {
 			s.addStep(deployTestRun.ID, models.StepNotify, "COMPLETED", "Failure notification sent", "")
