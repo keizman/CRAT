@@ -137,16 +137,30 @@ func (t *TestItemController) TriggerDeployTest(c *gin.Context) {
 		return
 	}
 
-	deployTestRun, err := t.deployTestService.TriggerDeployTest(uint(id), req.BuildInfoID, userEmail.(string), req.ParameterSetID)
+	result, err := t.deployTestService.TriggerDeployTestWithBlocking(uint(id), req.BuildInfoID, userEmail.(string), req.ParameterSetID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Deploy test triggered successfully",
-		"data":    deployTestRun,
-	})
+	if result.Queued {
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Deploy test queued successfully",
+			"data": gin.H{
+				"queued":         true,
+				"queue_position": result.QueuePosition,
+				"run_id":         result.RunID,
+			},
+		})
+	} else {
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Deploy test triggered successfully",
+			"data": gin.H{
+				"queued": false,
+				"run_id": result.RunID,
+			},
+		})
+	}
 }
 
 // GetDeployTestRuns 获取部署测试运行历史

@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"crat/config"
@@ -21,6 +22,14 @@ type DeployTestService struct {
 	httpClient          *HTTPClient
 	notificationService *NotificationService
 	systemUtils         *SystemUtils
+	queueMutex          sync.Mutex
+}
+
+// TriggerResult 触发结果
+type TriggerResult struct {
+	RunID         uint
+	Queued        bool
+	QueuePosition int
 }
 
 func NewDeployTestService() *DeployTestService {
@@ -68,6 +77,111 @@ func (s *DeployTestService) TriggerDeployTest(testItemID, buildInfoID uint, trig
 	return deployTestRun, nil
 }
 
+// TriggerDeployTestWithBlocking 带阻塞逻辑的触发部署测试
+func (s *DeployTestService) TriggerDeployTestWithBlocking(testItemID, buildInfoID uint, triggeredBy string, parameterSetID *uint) (*TriggerResult, error) {
+	s.queueMutex.Lock()
+	defer s.queueMutex.Unlock()
+
+	// 检查是否启用阻塞模式
+	settings, err := s.systemUtils.GetSystemSettings()
+	if err != nil {
+		log.Printf("Failed to get system settings: %v", err)
+		// 如果无法获取设置，默认不阻塞
+		return s.triggerImmediately(testItemID, buildInfoID, triggeredBy, parameterSetID)
+	}
+
+	blockingEnabled := settings["test_blocking_enabled"] == "true"
+
+	if !blockingEnabled {
+		// 阻塞模式未启用，直接执行
+		return s.triggerImmediately(testItemID, buildInfoID, triggeredBy, parameterSetID)
+	}
+
+	// 检查当前运行中的测试数量
+	var runningCount int64
+	runningStates := []string{"PENDING", "DOWNLOADING", "DEPLOYING", "TESTING", "MONITORING"}
+
+	if err := config.DB.Model(&models.DeployTestRun{}).
+		Where("status IN ?", runningStates).
+		Count(&runningCount).Error; err != nil {
+		log.Printf("Failed to count running tests: %v", err)
+		// 如果查询失败，默认不阻塞
+		return s.triggerImmediately(testItemID, buildInfoID, triggeredBy, parameterSetID)
+	}
+
+	if runningCount >= 1 {
+		// 有测试正在运行，加入队列
+		return s.addToQueue(testItemID, buildInfoID, triggeredBy, parameterSetID)
+	} else {
+		// 没有测试运行，直接执行
+		return s.triggerImmediately(testItemID, buildInfoID, triggeredBy, parameterSetID)
+	}
+}
+
+// triggerImmediately 立即触发测试
+func (s *DeployTestService) triggerImmediately(testItemID, buildInfoID uint, triggeredBy string, parameterSetID *uint) (*TriggerResult, error) {
+	deployTestRun, err := s.TriggerDeployTest(testItemID, buildInfoID, triggeredBy, parameterSetID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &TriggerResult{
+		RunID:  deployTestRun.ID,
+		Queued: false,
+	}, nil
+}
+
+// addToQueue 加入队列
+func (s *DeployTestService) addToQueue(testItemID, buildInfoID uint, triggeredBy string, parameterSetID *uint) (*TriggerResult, error) {
+	// 获取测试项和构建信息
+	var testItem models.TestItem
+	if err := config.DB.First(&testItem, testItemID).Error; err != nil {
+		return nil, fmt.Errorf("failed to get test item: %v", err)
+	}
+
+	buildInfo, err := s.buildService.GetBuildInfoByID(buildInfoID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get build info: %v", err)
+	}
+
+	// 创建队列状态的部署测试运行记录
+	deployTestRun := &models.DeployTestRun{
+		TestItemID:     testItemID,
+		BuildInfoID:    buildInfoID,
+		TriggeredBy:    triggeredBy,
+		ParameterSetID: parameterSetID,
+		Status:         "QUEUED", // 队列状态
+		MaxQueryHours:  3,
+		QueryInterval:  60,
+		QueryTimeout:   30,
+		StartedAt:      time.Now(),
+		Steps:          json.RawMessage("[]"),
+	}
+
+	if err := config.DB.Create(deployTestRun).Error; err != nil {
+		return nil, fmt.Errorf("failed to create queued deploy test run: %v", err)
+	}
+
+	// 计算队列位置
+	var queuePosition int64
+	if err := config.DB.Model(&models.DeployTestRun{}).
+		Where("status = ? AND id < ?", "QUEUED", deployTestRun.ID).
+		Count(&queuePosition).Error; err != nil {
+		queuePosition = 0
+	}
+
+	// 启动队列监控（如果还没有启动）
+	go s.monitorQueue()
+
+	log.Printf("Test added to queue: run_id=%d, position=%d", deployTestRun.ID, queuePosition+1)
+
+	return &TriggerResult{
+		RunID:         deployTestRun.ID,
+		Queued:        true,
+		QueuePosition: int(queuePosition + 1),
+	}, nil
+}
+
 // executeDeployTest 执行完整的部署测试流程
 func (s *DeployTestService) executeDeployTest(deployTestRun *models.DeployTestRun, testItem *models.TestItem, buildInfo *models.BuildInfo) {
 	log.Printf("Starting deploy test execution for run ID %d", deployTestRun.ID)
@@ -101,6 +215,9 @@ func (s *DeployTestService) executeDeployTest(deployTestRun *models.DeployTestRu
 
 	// 步骤4: 发送通知
 	s.sendNotification(deployTestRun, testItem, buildInfo)
+
+	// 步骤5: 处理队列中的下一个测试
+	go s.processNextInQueue()
 
 	log.Printf("Deploy test execution completed for run ID %d", deployTestRun.ID)
 }
@@ -789,4 +906,90 @@ func (s *DeployTestService) ClearDeployTestHistory(testItemID uint) (int64, erro
 	log.Printf("Successfully cleared %d deploy test runs for test item '%s' (ID: %d)", deletedCount, testItem.Name, testItemID)
 
 	return deletedCount, nil
+}
+
+// monitorQueue 监控队列（避免重复启动）
+var queueMonitorRunning bool
+var queueMonitorMutex sync.Mutex
+
+func (s *DeployTestService) monitorQueue() {
+	queueMonitorMutex.Lock()
+	defer queueMonitorMutex.Unlock()
+
+	if queueMonitorRunning {
+		return // 已经在运行
+	}
+	queueMonitorRunning = true
+
+	go func() {
+		defer func() {
+			queueMonitorMutex.Lock()
+			queueMonitorRunning = false
+			queueMonitorMutex.Unlock()
+		}()
+
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				s.processNextInQueue()
+			}
+		}
+	}()
+}
+
+// processNextInQueue 处理队列中的下一个测试
+func (s *DeployTestService) processNextInQueue() {
+	s.queueMutex.Lock()
+	defer s.queueMutex.Unlock()
+
+	// 检查当前是否有运行中的测试
+	var runningCount int64
+	runningStates := []string{"PENDING", "DOWNLOADING", "DEPLOYING", "TESTING", "MONITORING"}
+
+	if err := config.DB.Model(&models.DeployTestRun{}).
+		Where("status IN ?", runningStates).
+		Count(&runningCount).Error; err != nil {
+		log.Printf("Failed to count running tests: %v", err)
+		return
+	}
+
+	if runningCount >= 1 {
+		// 还有测试在运行，等待
+		return
+	}
+
+	// 获取队列中的第一个测试
+	var queuedRun models.DeployTestRun
+	if err := config.DB.Where("status = ?", "QUEUED").
+		Order("id ASC").
+		First(&queuedRun).Error; err != nil {
+		// 队列为空或查询失败
+		return
+	}
+
+	log.Printf("Processing queued test: run_id=%d", queuedRun.ID)
+
+	// 获取测试项和构建信息
+	var testItem models.TestItem
+	if err := config.DB.First(&testItem, queuedRun.TestItemID).Error; err != nil {
+		log.Printf("Failed to get test item for queued run %d: %v", queuedRun.ID, err)
+		s.updateDeployTestStatus(queuedRun.ID, models.DeployTestStatusFailed, fmt.Sprintf("Failed to get test item: %v", err))
+		return
+	}
+
+	buildInfo, err := s.buildService.GetBuildInfoByID(queuedRun.BuildInfoID)
+	if err != nil {
+		log.Printf("Failed to get build info for queued run %d: %v", queuedRun.ID, err)
+		s.updateDeployTestStatus(queuedRun.ID, models.DeployTestStatusFailed, fmt.Sprintf("Failed to get build info: %v", err))
+		return
+	}
+
+	// 更新状态为 PENDING 并开始执行
+	s.updateDeployTestStatus(queuedRun.ID, models.DeployTestStatusPending, "")
+
+	// 异步执行部署测试流程
+	go s.executeDeployTest(&queuedRun, &testItem, buildInfo)
 }

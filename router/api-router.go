@@ -17,6 +17,7 @@ func SetupAPIRoutes(router *gin.Engine) {
 	testItemController := controllers.NewTestItemController()
 	systemSettingController := controllers.NewSystemSettingController()
 	parameterSetController := controllers.NewParameterSetController()
+	processingCountController := controllers.NewProcessingCountController()
 
 	// API路由组
 	api := router.Group("/api/v1")
@@ -63,6 +64,9 @@ func SetupAPIRoutes(router *gin.Engine) {
 		// 参数集读取（所有认证用户可访问）
 		authenticated.GET("/parameter-sets", parameterSetController.GetParameterSets)
 		authenticated.GET("/parameter-sets/:id", parameterSetController.GetParameterSet)
+
+		// 处理计数（所有认证用户可访问）
+		authenticated.GET("/processing-count", processingCountController.GetProcessingCount)
 
 		// 需要管理员权限的路由
 		admin := authenticated.Group("/")

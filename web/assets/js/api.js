@@ -236,4 +236,9 @@ export class API {
     static async deleteJobVersion(jobName) {
         return this.delete(`/job-versions/${jobName}`);
     }
+
+    // 获取当前处理中的测试数量
+    static async getProcessingCount() {
+        return this.get('/processing-count');
+    }
 }

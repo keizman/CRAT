@@ -6,12 +6,7 @@ class TestTrigger {
     static testItems = [];
     static expandedItems = new Set();
     static jobVersions = new Map(); // job_name -> selected_build_info from BuildInfo
-    static processingCount = 0; // 当前正在处理的测试数量
-    static testQueue = []; // 待处理的测试队列
-    static blockingEnabled = false; // 是否启用阻塞逻辑
-    static runningTests = new Set(); // 正在运行的测试ID集合
-    static monitoringInterval = null; // 监控定时器
-    static pendingTriggers = new Set(); // 正在处理触发请求的测试ID集合
+    static processingCount = 0; // 当前正在处理的测试数量（从后端获取）
 
     // Load expanded state from localStorage
     static loadExpandedState() {
@@ -43,9 +38,6 @@ class TestTrigger {
             // Load expanded state first
             this.loadExpandedState();
             
-            // Load system settings to check if blocking is enabled
-            await this.loadSystemSettings();
-            
             const response = await API.getTestItems();
             const newTestItems = (response.data || []).sort((a, b) => a.name.localeCompare(b.name));
             
@@ -53,8 +45,8 @@ class TestTrigger {
             
             this.testItems = newTestItems;
             
-            // 重新计算当前正在运行的测试数量
-            await this.recalculateProcessingCount();
+            // 从后端获取当前处理数量
+            await this.loadProcessingCount();
             
             this.renderTestItems();
             this.updateProcessingIndicator();
@@ -73,69 +65,15 @@ class TestTrigger {
         }
     }
 
-    // 重新计算当前正在处理的测试数量（基于实际的测试运行状态）
-    static async recalculateProcessingCount() {
+    // 从后端获取当前处理数量
+    static async loadProcessingCount() {
         try {
-            let runningCount = 0;
-            this.runningTests.clear();
-            
-            // 检查每个测试项的最新运行状态
-            for (const item of this.testItems) {
-                try {
-                    const response = await API.getDeployTestRuns(item.id, 1); // 获取最新的一条记录
-                    const runs = response.data || [];
-                    
-                    if (runs.length > 0) {
-                        const latestRun = runs[0];
-                        
-                        // 检查是否为运行中状态
-                        const runningStates = ['PENDING', 'DOWNLOADING', 'DEPLOYING', 'TESTING', 'MONITORING'];
-                        if (runningStates.includes(latestRun.status)) {
-                            runningCount++;
-                            this.runningTests.add(item.id);
-                            console.log(`Found running test: ${item.name} (${latestRun.status})`);
-                        }
-                    }
-                } catch (error) {
-                    console.warn(`Failed to check status for item ${item.id}:`, error);
-                }
-            }
-            
-            this.processingCount = runningCount;
-            console.log(`Recalculated processing count: ${this.processingCount}`);
-            
-            // 如果有运行中的测试，启动监控
-            if (this.processingCount > 0) {
-                this.startMonitoring();
-            }
-            
+            const response = await API.getProcessingCount();
+            this.processingCount = response.data.count || 0;
+            console.log(`Processing count loaded from backend: ${this.processingCount}`);
         } catch (error) {
-            console.error('Failed to recalculate processing count:', error);
+            console.warn('Failed to load processing count:', error);
             this.processingCount = 0;
-        }
-    }
-
-    // Load system settings to check blocking configuration
-    static async loadSystemSettings() {
-        try {
-            const response = await API.getSystemSettings();
-            const settings = response.data || {};
-            
-            // Check if test_blocking_enabled exists and get its value
-            const blockingSetting = settings.test_blocking_enabled;
-            if (blockingSetting) {
-                this.blockingEnabled = blockingSetting.value === 'true' || blockingSetting.value === true;
-            } else {
-                this.blockingEnabled = false;
-            }
-            
-            console.log('Blocking configuration loaded:', {
-                setting: blockingSetting,
-                enabled: this.blockingEnabled
-            });
-        } catch (error) {
-            console.warn('Failed to load system settings for blocking config:', error);
-            this.blockingEnabled = false;
         }
     }
 
@@ -165,110 +103,6 @@ class TestTrigger {
             // Yellow color with spinner
             iconElement.className = 'w-4 h-4 rounded-full bg-yellow-500 flex items-center justify-center';
             spinnerElement.classList.remove('hidden');
-        }
-    }
-
-    // Increment processing count
-    static incrementProcessingCount() {
-        this.processingCount++;
-        this.updateProcessingIndicator();
-        console.log(`Processing count incremented to: ${this.processingCount}`);
-    }
-
-    // Decrement processing count
-    static decrementProcessingCount() {
-        if (this.processingCount > 0) {
-            this.processingCount--;
-            this.updateProcessingIndicator();
-            console.log(`Processing count decremented to: ${this.processingCount}`);
-            
-            // Process next item in queue if blocking is enabled
-            if (this.blockingEnabled && this.processingCount === 0 && this.testQueue.length > 0) {
-                this.processNextQueuedTest();
-            }
-        }
-    }
-
-    // Process next queued test
-    static processNextQueuedTest() {
-        if (this.testQueue.length === 0) {
-            return;
-        }
-        
-        const queuedTest = this.testQueue.shift();
-        console.log('Processing next queued test:', queuedTest);
-        
-        // Execute the queued test
-        this.executeTestTrigger(queuedTest.itemId);
-    }
-
-    // Start monitoring running tests for completion
-    static startMonitoring() {
-        if (this.monitoringInterval) {
-            return; // Already monitoring
-        }
-        
-        this.monitoringInterval = setInterval(() => {
-            this.checkRunningTests();
-        }, 10000); // Check every 10 seconds
-        
-        console.log('Started monitoring running tests');
-    }
-
-    // Stop monitoring
-    static stopMonitoring() {
-        if (this.monitoringInterval) {
-            clearInterval(this.monitoringInterval);
-            this.monitoringInterval = null;
-            console.log('Stopped monitoring running tests');
-        }
-    }
-
-    // Check status of running tests
-    static async checkRunningTests() {
-        if (this.runningTests.size === 0) {
-            this.stopMonitoring();
-            return;
-        }
-
-        const runningTestIds = Array.from(this.runningTests);
-        console.log('Checking running tests:', runningTestIds);
-
-        for (const testItemId of runningTestIds) {
-            try {
-                const response = await API.getDeployTestRuns(testItemId, 1); // Get latest run
-                const runs = response.data || [];
-                
-                if (runs.length > 0) {
-                    const latestRun = runs[0];
-                    
-                    // Check if test is completed (not in running states)
-                    const runningStates = ['PENDING', 'DOWNLOADING', 'DEPLOYING', 'TESTING', 'MONITORING'];
-                    if (!runningStates.includes(latestRun.status)) {
-                        console.log(`Test ${testItemId} completed with status: ${latestRun.status}`);
-                        this.handleTestCompletion(testItemId);
-                    }
-                }
-            } catch (error) {
-                console.error(`Error checking test status for ${testItemId}:`, error);
-            }
-        }
-    }
-
-    // Handle test completion
-    static handleTestCompletion(testItemId) {
-        if (this.runningTests.has(testItemId)) {
-            this.runningTests.delete(testItemId);
-            this.decrementProcessingCount();
-            
-            // Reset button state if it's still disabled
-            const button = document.querySelector(`.trigger-btn[data-item-id="${testItemId}"]`);
-            if (button && button.disabled) {
-                button.disabled = false;
-                button.innerHTML = '<i class="fas fa-play mr-1"></i>触发测试';
-            }
-            
-            console.log(`Test ${testItemId} completed, processing count: ${this.processingCount}`);
         }
     }
 
@@ -817,12 +651,6 @@ class TestTrigger {
 
 
     static async triggerTest(itemId) {
-        // 防止重复触发同一个测试
-        if (this.pendingTriggers.has(itemId)) {
-            console.log(`Test ${itemId} is already being triggered, ignoring click`);
-            return;
-        }
-
         const button = document.querySelector(`.trigger-btn[data-item-id="${itemId}"]`);
         
         // 防止重复点击
@@ -844,112 +672,46 @@ class TestTrigger {
             return;
         }
 
-        // 标记为正在处理并立即禁用按钮防止重复点击
-        this.pendingTriggers.add(itemId);
-        if (button) {
+        const originalText = button.innerHTML;
+        
+        try {
             button.disabled = true;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>检查中...';
-        }
-
-        try {
-            // 如果启用了阻塞模式，需要实时检查当前运行状态
-            if (this.blockingEnabled) {
-                await this.recalculateProcessingCount();
-            }
-
-            // Check blocking logic - 考虑正在处理的触发请求
-            const totalProcessing = this.processingCount + this.pendingTriggers.size - 1; // -1 因为当前这个还在 pending
-            console.log('Trigger test check:', {
-                itemId,
-                blockingEnabled: this.blockingEnabled,
-                processingCount: this.processingCount,
-                pendingTriggers: this.pendingTriggers.size,
-                totalProcessing,
-                runningTests: Array.from(this.runningTests),
-                shouldBlock: this.blockingEnabled && totalProcessing >= 1
-            });
-            
-            if (this.blockingEnabled && totalProcessing >= 1) {
-                // Add to queue instead of executing immediately
-                this.testQueue.push({ itemId, item, itemVersion });
-                
-                console.log(`Test ${itemId} added to queue. Queue length: ${this.testQueue.length}`);
-                
-                button.innerHTML = '<i class="fas fa-clock mr-2"></i>排队中...';
-                
-                if (window.app && window.app.showSuccess) {
-                    window.app.showSuccess(`测试已加入队列 (排队位置: ${this.testQueue.length})，等待前面的测试完成`);
-                } else {
-                    alert(`测试已加入队列 (排队位置: ${this.testQueue.length})，等待前面的测试完成`);
-                }
-                
-                // Reset button after short delay to show queued status
-                setTimeout(() => {
-                    button.innerHTML = '<i class="fas fa-hourglass-half mr-2"></i>已排队';
-                    button.disabled = true;
-                }, 2000);
-                
-                return;
-            }
-
-            // Execute test immediately
-            this.executeTestTrigger(itemId);
-        } catch (error) {
-            console.error('Error in triggerTest:', error);
-            // 恢复按钮状态
-            if (button) {
-                button.disabled = false;
-                button.innerHTML = '<i class="fas fa-play mr-1"></i>触发测试';
-            }
-        } finally {
-            // 清除 pending 状态
-            this.pendingTriggers.delete(itemId);
-        }
-    }
-
-    // Execute test trigger (separated for queue processing)
-    static async executeTestTrigger(itemId) {
-        const item = this.testItems.find(t => t.id === itemId);
-        if (!item) {
-            console.error('Test item not found:', itemId);
-            return;
-        }
-
-        const itemVersion = this.getItemVersion(item);
-        if (!itemVersion) {
-            console.error('Item version not found for:', item.name);
-            return;
-        }
-
-        const button = document.querySelector(`.trigger-btn[data-item-id="${itemId}"]`);
-        const originalText = '<i class="fas fa-play mr-1"></i>触发测试';
-        
-        // Add to running tests and increment processing count when starting
-        console.log(`Executing test ${itemId}, incrementing processing count from ${this.processingCount} to ${this.processingCount + 1}`);
-        this.runningTests.add(itemId);
-        this.incrementProcessingCount();
-        
-        try {
-            if (button) {
-                button.disabled = true;
-                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>触发中...';
-            }
+            button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>触发中...';
             
             // 获取选中的参数集ID
             const paramSelect = document.querySelector(`.parameter-select[data-item-id="${itemId}"]`);
             const parameterSetId = paramSelect && paramSelect.value ? parseInt(paramSelect.value) : null;
             
-            await API.triggerDeployTest(itemId, itemVersion.id, parameterSetId);
+            // 直接调用后端API，让后端处理阻塞逻辑
+            const response = await API.triggerDeployTest(itemId, itemVersion.id, parameterSetId);
             
-            // Start monitoring (runningTests was already added above)
-            this.startMonitoring();
-            
-            // Show success message
-            if (window.app && window.app.showSuccess) {
-                window.app.showSuccess(`测试已触发 (使用版本: ${itemVersion.job_name} #${itemVersion.build_number})，请查看执行历史`);
+            // 检查后端返回的状态
+            if (response.data && response.data.queued) {
+                // 测试被加入队列
+                button.innerHTML = '<i class="fas fa-hourglass-half mr-2"></i>已排队';
+                button.disabled = true;
+                
+                if (window.app && window.app.showSuccess) {
+                    window.app.showSuccess(`测试已加入队列 (排队位置: ${response.data.queue_position})，等待前面的测试完成`);
+                } else {
+                    alert(`测试已加入队列 (排队位置: ${response.data.queue_position})，等待前面的测试完成`);
+                }
             } else {
-                alert(`测试已触发 (使用版本: ${itemVersion.job_name} #${itemVersion.build_number})，请查看执行历史`);
+                // 测试立即执行
+                if (window.app && window.app.showSuccess) {
+                    window.app.showSuccess(`测试已触发 (使用版本: ${itemVersion.job_name} #${itemVersion.build_number})，请查看执行历史`);
+                } else {
+                    alert(`测试已触发 (使用版本: ${itemVersion.job_name} #${itemVersion.build_number})，请查看执行历史`);
+                }
+                
+                // 恢复按钮状态
+                button.disabled = false;
+                button.innerHTML = originalText;
             }
+            
+            // 更新处理计数
+            await this.loadProcessingCount();
+            this.updateProcessingIndicator();
             
             // 如果历史记录是展开的，刷新它
             if (this.expandedItems.has(itemId)) {
@@ -958,16 +720,12 @@ class TestTrigger {
         } catch (error) {
             console.error('Trigger test failed:', error);
             alert('触发失败: ' + error.message);
-            // Clean up on error - remove from running tests and decrement count
-            this.runningTests.delete(itemId);
-            this.decrementProcessingCount();
-        } finally {
-            if (button) {
-                button.disabled = false;
-                button.innerHTML = originalText;
-            }
+            button.disabled = false;
+            button.innerHTML = originalText;
         }
     }
+
+
 
     static async triggerDeployTest(itemId) {
         const select = document.querySelector(`.version-select[data-item-id="${itemId}"]`);
