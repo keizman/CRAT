@@ -73,7 +73,19 @@ class TestTrigger {
         try {
             const response = await API.getSystemSettings();
             const settings = response.data || {};
-            this.blockingEnabled = settings.test_blocking_enabled === 'true' || settings.test_blocking_enabled === true;
+            
+            // Check if test_blocking_enabled exists and get its value
+            const blockingSetting = settings.test_blocking_enabled;
+            if (blockingSetting) {
+                this.blockingEnabled = blockingSetting.value === 'true' || blockingSetting.value === true;
+            } else {
+                this.blockingEnabled = false;
+            }
+            
+            console.log('Blocking configuration loaded:', {
+                setting: blockingSetting,
+                enabled: this.blockingEnabled
+            });
         } catch (error) {
             console.warn('Failed to load system settings for blocking config:', error);
             this.blockingEnabled = false;
@@ -772,9 +784,18 @@ class TestTrigger {
         }
 
         // Check blocking logic
+        console.log('Trigger test check:', {
+            itemId,
+            blockingEnabled: this.blockingEnabled,
+            processingCount: this.processingCount,
+            shouldBlock: this.blockingEnabled && this.processingCount >= 1
+        });
+        
         if (this.blockingEnabled && this.processingCount >= 1) {
             // Add to queue instead of executing immediately
             this.testQueue.push({ itemId, item, itemVersion });
+            
+            console.log(`Test ${itemId} added to queue. Queue length: ${this.testQueue.length}`);
             
             const button = document.querySelector(`.trigger-btn[data-item-id="${itemId}"]`);
             const originalText = button.innerHTML;
@@ -818,6 +839,7 @@ class TestTrigger {
         const originalText = button.innerHTML;
         
         // Increment processing count when starting
+        console.log(`Executing test ${itemId}, incrementing processing count from ${this.processingCount} to ${this.processingCount + 1}`);
         this.incrementProcessingCount();
         
         try {
