@@ -133,14 +133,14 @@ func (s *DeployTestService) triggerImmediately(testItemID, buildInfoID uint, tri
 
 // addToQueue 加入队列
 func (s *DeployTestService) addToQueue(testItemID, buildInfoID uint, triggeredBy string, parameterSetID *uint) (*TriggerResult, error) {
-	// 获取测试项和构建信息
+	// 验证测试项存在
 	var testItem models.TestItem
 	if err := config.DB.First(&testItem, testItemID).Error; err != nil {
 		return nil, fmt.Errorf("failed to get test item: %v", err)
 	}
 
-	buildInfo, err := s.buildService.GetBuildInfoByID(buildInfoID)
-	if err != nil {
+	// 验证构建信息存在
+	if _, err := s.buildService.GetBuildInfoByID(buildInfoID); err != nil {
 		return nil, fmt.Errorf("failed to get build info: %v", err)
 	}
 
