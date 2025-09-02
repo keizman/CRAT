@@ -296,16 +296,9 @@ class BuildInfo {
             }).join('');
 
             const isExpanded = true; // 默认展开状态
-            const moreBuilds = builds.length > 5 ? `
-                <div class="text-center py-2">
-                    <button class="text-blue-600 hover:text-blue-800 text-sm" onclick="BuildInfo.loadMoreBuilds('${jobName}')">
-                        <i class="fas fa-chevron-down mr-1"></i>查看更多 (${builds.length - 5})
-                    </button>
-                </div>
-            ` : '';
 
             html += `
-                <div class="bento-card rounded-2xl p-6">
+                <div class="bento-card rounded-2xl p-6" data-job-name="${jobName}">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="text-xl font-bold text-gray-800 flex items-center">
                             <i class="fas fa-cube mr-3 text-blue-500"></i>
@@ -324,8 +317,16 @@ class BuildInfo {
                         </div>
                     </div>
                     <div class="build-content space-y-3" data-job="${jobName}" style="display: ${isExpanded ? 'block' : 'none'};">
-                        ${buildItems}
-                        ${moreBuilds}
+                        <div class="builds-container space-y-3">
+                            ${buildItems}
+                        </div>
+                        ${builds.length > 5 ? `
+                        <div class="text-center py-2 load-more-btn">
+                            <button class="text-blue-600 hover:text-blue-800 text-sm" onclick="BuildInfo.loadMoreBuilds('${jobName}')">
+                                <i class="fas fa-chevron-down mr-1"></i>查看更多 (${builds.length - 5})
+                            </button>
+                        </div>
+                        ` : ''}
                     </div>
                 </div>
             `;
@@ -429,8 +430,102 @@ class BuildInfo {
     }
 
     static async loadMoreBuilds(jobName) {
-        // 这里可以实现分页加载更多构建信息
         console.log('Loading more builds for:', jobName);
+        
+        // 找到对应的job卡片
+        const jobCard = document.querySelector(`[data-job-name="${jobName}"]`);
+        if (!jobCard) {
+            console.error('Job card not found:', jobName);
+            return;
+        }
+        
+        // 找到构建列表容器
+        const buildsContainer = jobCard.querySelector('.builds-container');
+        if (!buildsContainer) {
+            console.error('Builds container not found for job:', jobName);
+            return;
+        }
+        
+        // 获取该job的所有构建数据
+        const builds = this.buildInfoMap.get(jobName) || [];
+        if (builds.length <= 5) {
+            console.log('No more builds to show for:', jobName);
+            return;
+        }
+        
+        // 显示所有构建（移除5个的限制）
+        const allBuildsHtml = builds.map(build => {
+            const buildDate = new Date(build.created_at).toLocaleString('zh-CN');
+            const buildPath = this.generateBuildPath(build);
+            const downloadPath = this.generateDownloadPath(build);
+            
+            const selectedBuild = this.jobVersions.get(jobName);
+            const isSelected = selectedBuild && selectedBuild.id === build.id;
+            
+            return `
+                <div class="bg-gray-50 rounded-lg p-4 border-l-4 border-blue-400 relative">
+                    <div class="space-y-3">
+                        <!-- 版本选择按钮和基本信息行 -->
+                        <div class="flex items-start justify-between">
+                            <div class="flex flex-wrap gap-2">
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                    <i class="fas fa-calendar-alt mr-1"></i>
+                                    ${buildDate}
+                                </span>
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    <i class="fas fa-user mr-1"></i>
+                                    ${build.build_user}
+                                </span>
+                            </div>
+                            <button class="select-version-btn px-3 py-1 text-xs font-medium text-white rounded-lg transition-all duration-200 ${isSelected ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-500 hover:bg-blue-600'}" 
+                                    data-build-id="${build.id}"
+                                    data-job-name="${jobName}">
+                                <i class="fas ${isSelected ? 'fa-check' : 'fa-mouse-pointer'} mr-1"></i>${isSelected ? '已选择' : '选择版本'}
+                            </button>
+                        </div>
+                        
+                        <!-- 链接信息块 -->
+                        <div class="space-y-2">
+                            <div class="bg-white rounded-md p-3 border border-gray-200">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">构建路径</span>
+                                    <a href="${buildPath}" target="_blank" class="text-blue-600 hover:text-blue-800 text-xs flex items-center">
+                                        <i class="fas fa-external-link-alt mr-1"></i>查看构建
+                                    </a>
+                                </div>
+                                <p class="text-sm text-gray-700 mt-1 break-all">${build.job_name} #${build.build_number}</p>
+                            </div>
+                            
+                            ${build.package_path ? `
+                            <div class="bg-white rounded-md p-3 border border-gray-200">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">下载路径</span>
+                                    <a href="${downloadPath}" target="_blank" class="text-green-600 hover:text-green-800 text-xs flex items-center">
+                                        <i class="fas fa-download mr-1"></i>下载
+                                    </a>
+                                </div>
+                                <p class="text-sm text-gray-700 mt-1 break-all">${build.package_path}</p>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        // 更新构建列表容器
+        buildsContainer.innerHTML = allBuildsHtml;
+        
+        // 隐藏"查看更多"按钮
+        const moreButton = jobCard.querySelector('.load-more-btn');
+        if (moreButton) {
+            moreButton.style.display = 'none';
+        }
+        
+        // 重新绑定版本选择按钮事件
+        this.bindVersionSelectEvents();
+        
+        console.log(`Expanded all ${builds.length} builds for job: ${jobName}`);
     }
 
     static generateBuildPath(build) {

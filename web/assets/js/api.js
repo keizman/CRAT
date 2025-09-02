@@ -241,4 +241,9 @@ export class API {
     static async getProcessingCount() {
         return this.get('/processing-count');
     }
+
+    // 获取系统版本信息
+    static async getVersion() {
+        return this.get('/version');
+    }
 }

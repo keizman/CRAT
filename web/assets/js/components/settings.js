@@ -10,8 +10,42 @@ class Settings {
             this.currentSettings = response.data || {};
             console.log('Loaded system settings:', this.currentSettings); // 调试信息
             this.renderSystemSettings();
+            
+            // 加载版本信息
+            await this.loadVersionInfo();
         } catch (error) {
             console.error('Failed to load system settings:', error);
+        }
+    }
+
+    static async loadVersionInfo() {
+        try {
+            const response = await API.getVersion();
+            const versionData = response.data || {};
+            console.log('Loaded version info:', versionData); // 调试信息
+            this.renderVersionInfo(versionData);
+        } catch (error) {
+            console.error('Failed to load version info:', error);
+        }
+    }
+
+    static renderVersionInfo(versionData) {
+        const appNameElement = document.getElementById('appName');
+        const appVersionElement = document.getElementById('appVersion');
+        const goVersionElement = document.getElementById('goVersion');
+        const buildTimeElement = document.getElementById('buildTime');
+
+        if (appNameElement) {
+            appNameElement.textContent = versionData.app_name || 'CRAT';
+        }
+        if (appVersionElement) {
+            appVersionElement.textContent = versionData.app_version || '1.0';
+        }
+        if (goVersionElement) {
+            goVersionElement.textContent = versionData.go_version || '-';
+        }
+        if (buildTimeElement) {
+            buildTimeElement.textContent = versionData.build_time || '开发版本';
         }
     }
 

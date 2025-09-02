@@ -48,6 +48,9 @@ class CRATApp {
         
         // 加载初始数据
         this.loadInitialData();
+        
+        // 加载页面底部版本信息
+        this.loadFooterVersion();
     }
 
     initUserInterface() {
@@ -463,6 +466,20 @@ class CRATApp {
         } finally {
             icon.classList.remove('fa-spin');
             button.disabled = false;
+        }
+    }
+
+    async loadFooterVersion() {
+        try {
+            const response = await API.getVersion();
+            const versionData = response.data || {};
+            const footerVersionElement = document.getElementById('footerVersion');
+            
+            if (footerVersionElement && versionData.app_name && versionData.app_version) {
+                footerVersionElement.textContent = `${versionData.app_name} v${versionData.app_version}`;
+            }
+        } catch (error) {
+            console.error('Failed to load footer version:', error);
         }
     }
 }

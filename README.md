@@ -959,3 +959,29 @@ MIT License
       class ServiceType,CServiceDeploy,OpenRestyDeploy,ExtractPackage,StopService,BackupBinary,CopyNewBinary deployment
       class ExecutePytest,RunPytestScript,PytestExecution,AllureResults,GenerateReport testing
 ```
+
+
+-----
+
+V1.2
+
+添加 processing 状态, 添加同时运行阻塞, 限制只能同时运行一个
+``` 可能遇到默认由两个在运行的, 使用这个 sql 强制刷新状态
+-- 先查看要清理的记录
+SELECT 
+    id, 
+    status, 
+    started_at, 
+    EXTRACT(EPOCH FROM (NOW() - started_at))/3600 as hours 
+FROM deploy_test_runs 
+WHERE status IN ('PENDING', 'DOWNLOADING', 'DEPLOYING', 'TESTING', 'MONITORING')
+    AND EXTRACT(EPOCH FROM (NOW() - started_at))/3600 > 3;
+
+-- 如果确认要清理，执行更新
+UPDATE deploy_test_runs 
+SET status = 'FAILED', 
+    error_message = 'Test timeout - automatically failed by cleanup',
+    finished_at = NOW()
+WHERE status IN ('PENDING', 'DOWNLOADING', 'DEPLOYING', 'TESTING', 'MONITORING')
+    AND EXTRACT(EPOCH FROM (NOW() - started_at))/3600 > 3;
+```

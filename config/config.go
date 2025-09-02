@@ -6,6 +6,12 @@ import (
 	"github.com/spf13/viper"
 )
 
+// 系统版本信息
+const (
+	AppVersion = "1.2"
+	AppName    = "CRAT"
+)
+
 type Config struct {
 	Server   ServerConfig   `mapstructure:"server"`
 	Database DatabaseConfig `mapstructure:"database"`

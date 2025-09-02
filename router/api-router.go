@@ -18,6 +18,7 @@ func SetupAPIRoutes(router *gin.Engine) {
 	systemSettingController := controllers.NewSystemSettingController()
 	parameterSetController := controllers.NewParameterSetController()
 	processingCountController := controllers.NewProcessingCountController()
+	versionController := controllers.NewVersionController()
 
 	// API路由组
 	api := router.Group("/api/v1")
@@ -27,6 +28,9 @@ func SetupAPIRoutes(router *gin.Engine) {
 
 	// Jenkins Webhook (无需认证)
 	api.POST("/builds", buildInfoController.CreateBuildInfo)
+
+	// 版本信息 (无需认证)
+	api.GET("/version", versionController.GetVersion)
 
 	// 需要认证的路由
 	authenticated := api.Group("/")
