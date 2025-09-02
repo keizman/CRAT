@@ -731,10 +731,28 @@ class TestTrigger {
             // 关闭模态框
             const closeModal = () => {
                 modal.remove();
+                document.removeEventListener('keydown', handleEscKey);
+            };
+
+            // ESC键处理函数
+            const handleEscKey = (event) => {
+                if (event.key === 'Escape') {
+                    closeModal();
+                }
             };
             
             closeBtn.addEventListener('click', closeModal);
             cancelBtn.addEventListener('click', closeModal);
+            
+            // 绑定ESC键事件
+            document.addEventListener('keydown', handleEscKey);
+            
+            // 点击背景关闭
+            modal.addEventListener('click', (event) => {
+                if (event.target === modal) {
+                    closeModal();
+                }
+            });
             
             // 确认关联
             confirmBtn.addEventListener('click', async () => {
@@ -821,19 +839,28 @@ class TestTrigger {
         // 关闭模态框
         const closeModal = () => {
             modal.remove();
+            document.removeEventListener('keydown', handleEscKey);
+        };
+
+        // ESC键处理函数
+        const handleEscKey = (event) => {
+            if (event.key === 'Escape') {
+                closeModal();
+            }
         };
         
         closeBtn.addEventListener('click', closeModal);
         cancelBtn.addEventListener('click', closeModal);
         
-        // 按ESC键关闭
-        const handleKeyDown = (e) => {
-            if (e.key === 'Escape') {
+        // 绑定ESC键事件
+        document.addEventListener('keydown', handleEscKey);
+        
+        // 点击背景关闭
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) {
                 closeModal();
-                document.removeEventListener('keydown', handleKeyDown);
             }
-        };
-        document.addEventListener('keydown', handleKeyDown);
+        });
         
         // 确认保存
         confirmBtn.addEventListener('click', async () => {
@@ -1157,9 +1184,19 @@ class TestTrigger {
                 modal.remove();
                 document.removeEventListener('keydown', handleEscKey);
             };
+
+            // ESC键处理函数
+            const handleEscKey = (event) => {
+                if (event.key === 'Escape') {
+                    closeModal();
+                }
+            };
             
             // 点击关闭按钮
             modal.querySelector('.close-modal').addEventListener('click', closeModal);
+            
+            // 绑定ESC键事件
+            document.addEventListener('keydown', handleEscKey);
             
             // 点击遮罩层关闭
             modal.addEventListener('click', (e) => {
@@ -1167,14 +1204,6 @@ class TestTrigger {
                     closeModal();
                 }
             });
-            
-            // ESC键关闭
-            const handleEscKey = (e) => {
-                if (e.key === 'Escape') {
-                    closeModal();
-                }
-            };
-            document.addEventListener('keydown', handleEscKey);
 
         } catch (error) {
             alert('加载详情失败: ' + error.message);
@@ -1421,7 +1450,65 @@ class TestTrigger {
         `;
     }
 
+    // 测试ESC键功能的简化版本
+    static testEscKey() {
+        const testModalHtml = `
+            <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" id="test-esc-modal">
+                <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                    <h3 class="text-lg font-bold mb-4">ESC键测试</h3>
+                    <p class="mb-4">按ESC键或点击关闭按钮来关闭这个弹窗</p>
+                    <button class="close-modal bg-blue-500 text-white px-4 py-2 rounded">关闭</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', testModalHtml);
+        
+        const modal = document.getElementById('test-esc-modal');
+        const closeModal = () => {
+            modal.remove();
+            document.removeEventListener('keydown', handleEscKey);
+        };
+        
+        const handleEscKey = (event) => {
+            console.log('Key pressed:', event.key); // 调试用
+            if (event.key === 'Escape') {
+                closeModal();
+            }
+        };
+        
+        modal.querySelector('.close-modal').addEventListener('click', closeModal);
+        document.addEventListener('keydown', handleEscKey);
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) {
+                closeModal();
+            }
+        });
+    }
+
     static async showReportPreview(reportUrl) {
+        // 定义ESC键处理函数（在函数顶层，确保作用域正确）
+        let currentEscHandler = null;
+
+        // 通用的关闭模态框函数
+        const closeModal = () => {
+            const modal = document.getElementById('report-preview-modal');
+            if (modal) {
+                modal.remove();
+            }
+            if (currentEscHandler) {
+                document.removeEventListener('keydown', currentEscHandler);
+                currentEscHandler = null;
+            }
+        };
+
+        // ESC键处理函数
+        const handleEscKey = (event) => {
+            if (event.key === 'Escape') {
+                closeModal();
+            }
+        };
+
         try {
             // 显示加载中的模态框
             const loadingModalHtml = `
@@ -1443,6 +1530,21 @@ class TestTrigger {
 
             document.body.insertAdjacentHTML('beforeend', loadingModalHtml);
 
+            // 获取模态框元素并绑定事件
+            let modal = document.getElementById('report-preview-modal');
+            
+            // 设置当前的ESC处理函数
+            currentEscHandler = handleEscKey;
+            
+            // 绑定事件
+            modal.querySelector('.close-modal').addEventListener('click', closeModal);
+            document.addEventListener('keydown', currentEscHandler);
+            modal.addEventListener('click', (event) => {
+                if (event.target === modal) {
+                    closeModal();
+                }
+            });
+
             // 构建summary.json的URL
             const summaryUrl = reportUrl.endsWith('/') ? reportUrl + 'widgets/summary.json' : reportUrl + '/widgets/summary.json';
             
@@ -1458,7 +1560,7 @@ class TestTrigger {
             const summaryContent = this.generateSummaryHTML(summaryData);
 
             // 更新模态框内容
-            const modal = document.getElementById('report-preview-modal');
+            modal = document.getElementById('report-preview-modal');
             const modalContent = modal.querySelector('.bg-white');
             modalContent.innerHTML = `
                 <div class="flex items-center justify-between mb-4">
@@ -1479,10 +1581,8 @@ class TestTrigger {
                 </div>
             `;
 
-            // 重新绑定关闭事件
-            modal.querySelector('.close-modal').addEventListener('click', () => {
-                modal.remove();
-            });
+            // 重新绑定关闭按钮事件（ESC键事件已经在上面绑定了）
+            modal.querySelector('.close-modal').addEventListener('click', closeModal);
 
         } catch (error) {
             // 更新为错误状态
@@ -1506,10 +1606,8 @@ class TestTrigger {
                     </div>
                 `;
 
-                // 重新绑定关闭事件
-                modal.querySelector('.close-modal').addEventListener('click', () => {
-                    modal.remove();
-                });
+                // 重新绑定关闭按钮事件（ESC键事件已经在上面绑定了）
+                modal.querySelector('.close-modal').addEventListener('click', closeModal);
             } else {
                 alert('加载报告预览失败: ' + error.message);
             }
