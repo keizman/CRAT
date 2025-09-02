@@ -259,7 +259,10 @@ class CRATApp {
                 document.getElementById('triggerTestContent').classList.remove('hidden');
                 // Update processing indicator when switching to trigger test page
                 if (window.TestTrigger) {
-                    window.TestTrigger.updateProcessingIndicator();
+                    // Recalculate processing count based on actual test status
+                    window.TestTrigger.recalculateProcessingCount().then(() => {
+                        window.TestTrigger.updateProcessingIndicator();
+                    });
                 }
                 break;
             case 'buildInfo':
