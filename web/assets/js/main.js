@@ -257,6 +257,10 @@ class CRATApp {
                 document.getElementById('triggerTestBtn').classList.add('sidebar-active');
                 document.getElementById('triggerTestBtn').classList.remove('text-gray-600', 'hover:bg-gray-50');
                 document.getElementById('triggerTestContent').classList.remove('hidden');
+                // Update processing indicator when switching to trigger test page
+                if (window.TestTrigger) {
+                    window.TestTrigger.updateProcessingIndicator();
+                }
                 break;
             case 'buildInfo':
                 document.getElementById('buildInfoBtn').classList.add('sidebar-active');
@@ -418,8 +422,18 @@ class CRATApp {
         button.disabled = true;
         
         try {
+            // 重新加载测试项数据
             await TestTrigger.loadTestItems();
-            // Remove success hint for refresh button
+            
+            // 重新加载构建信息以获取最新版本
+            await BuildInfo.loadBuildInfoList();
+            
+            // 确保 Processing 指示器被更新
+            if (TestTrigger.updateProcessingIndicator) {
+                TestTrigger.updateProcessingIndicator();
+            }
+            
+            console.log('Trigger test data refreshed successfully');
         } catch (error) {
             console.error('Failed to refresh test items:', error);
             this.showError('刷新测试项失败: ' + error.message);

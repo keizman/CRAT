@@ -38,7 +38,8 @@ type EmailConfig struct {
 }
 
 type ExternalConfig struct {
-	TestServerURL string `mapstructure:"test_server_url"`
+	TestServerURL       string `mapstructure:"test_server_url"`
+	TestBlockingEnabled bool   `mapstructure:"test_blocking_enabled"`
 }
 
 var AppConfig *Config
@@ -55,6 +56,7 @@ func LoadConfig() {
 	viper.SetDefault("SQL_MAX_OPEN_CONNS", 1000)
 	viper.SetDefault("SQL_MAX_LIFETIME", 60)
 	viper.SetDefault("EMAIL_SEND_SERVER_PORT", 465)
+	viper.SetDefault("TEST_BLOCKING_ENABLED", false)
 
 	if err := viper.ReadInConfig(); err != nil {
 		log.Printf("Warning: Could not read config file: %v", err)
@@ -80,9 +82,10 @@ func LoadConfig() {
 			Server:   viper.GetString("EMAIL_SEND_SERVER"),
 			Port:     viper.GetInt("EMAIL_SEND_SERVER_PORT"),
 		},
-		// External: ExternalConfig{
-		// 	TestServerURL: viper.GetString("EXTERNAL_TEST_SERVER_URL"),
-		// },
+		External: ExternalConfig{
+			TestServerURL:       viper.GetString("EXTERNAL_TEST_SERVER_URL"),
+			TestBlockingEnabled: viper.GetBool("TEST_BLOCKING_ENABLED"),
+		},
 	}
 
 	log.Println("Configuration loaded successfully")

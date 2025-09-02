@@ -21,6 +21,8 @@ class Settings {
         const buildInfoUrlInput = document.getElementById('packageBuildInfoBaseUrl');
         const downloadUrlInput = document.getElementById('packageDownloadBaseUrl');
         const externalTestServerUrlInput = document.getElementById('externalTestServerUrl');
+        const testBlockingEnabledRadio = document.getElementById('testBlockingEnabled');
+        const testBlockingDisabledRadio = document.getElementById('testBlockingDisabled');
 
         if (projectNameInput && this.currentSettings.project_name) {
             projectNameInput.value = this.currentSettings.project_name.value || '';
@@ -36,6 +38,13 @@ class Settings {
 
         if (externalTestServerUrlInput && this.currentSettings.external_test_server_url) {
             externalTestServerUrlInput.value = this.currentSettings.external_test_server_url.value || '';
+        }
+
+        // Handle test blocking enabled radio buttons
+        if (testBlockingEnabledRadio && testBlockingDisabledRadio) {
+            const blockingEnabled = this.currentSettings.test_blocking_enabled?.value === 'true';
+            testBlockingEnabledRadio.checked = blockingEnabled;
+            testBlockingDisabledRadio.checked = !blockingEnabled;
         }
     }
 
