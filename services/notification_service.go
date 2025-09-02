@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -44,7 +45,14 @@ func NewNotificationService() *NotificationService {
 func (n *NotificationService) SendEmailNotification(to, subject, body string) error {
 	m := gomail.NewMessage()
 	m.SetHeader("From", config.AppConfig.Email.Username)
-	m.SetHeader("To", to)
+
+	// 如果收件人不是有效的邮箱地址，使用配置的邮箱用户名以保留邮件记录
+	if !regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`).MatchString(to) {
+		m.SetHeader("To", config.AppConfig.Email.Username) // 发件人和收件人相同
+	} else {
+		m.SetHeader("To", to)
+	}
+
 	m.SetHeader("Subject", subject)
 	m.SetBody("text/html", body)
 

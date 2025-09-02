@@ -359,7 +359,55 @@ cds
 
 
 
+------------------
 
+对项目执行以下修改， 1.web 允许 admin  + 密码方式登录， 目前其限制了类型 admin 无法登录   之后修改 的内容---触发测试
+需要做什么 
+1.下载 test_items.name 例如 cds 文件到本地, 大致方式为, 使用code 获取 cds 下载地址后拼接, 之后下载到本地 /tmp 目录, 确认文件在本地存在后执行下一步 
+```
+PS D:\Download> curl -v http://192.168.1.39/build/CDN/Core/20240626-story_container-c54239edb10ebf9266c4b97df0418e3b181e6fd6/ | grep cds | grep release
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0*   Trying 192.168.1.39:80...
+* Connected to 192.168.1.39 (192.168.1.39) port 80
+> GET /build/CDN/Core/20240626-story_container-c54239edb10ebf9266c4b97df0418e3b181e6fd6/ HTTP/1.1
+> Host: 192.168.1.39
+> User-Agent: curl/8.9.1
+> Accept: */*
+>
+< HTTP/1.1 200 OK
+< Server: nginx/1.10.3
+< Date: Tue, 17 Jun 2025 02:04:20 GMT
+< Content-Type: text/html; charset=utf-8
+< Transfer-Encoding: chunked
+< Connection: keep-alive
+< Cache-Control: no-store
+< Pragma: no-cache
+<
+{ [4020 bytes data]
+100  4008    0  4008    0     0   228k      0 --:--:-- --:--:-- --:--:--  230k
+* Connection #0 to host 192.168.1.39 left intact
+<a href="cds-5.3.9-c54239ed_x86_64-linux-gnu_20240626_release.tgz">cds-5.3.9-c54239ed_x86_64-linux-gnu_20240626_re..&gt;</a> 26-Jun-2024 17:48           246501318
+
+```
+2.发送一个请求触发测试 `/api/deploy_and_test` 具体请求细节可以查看 
+Not_in_porject_trigger_server 文件这是触发测试的服务器, 提取返回结果 task_id
+
+3.执行查看 /api/tasks/task_id 持续查询, 查询间隔 一分钟, timeout 30s, 每一个 taskid 最大查询 3小时, 可 env 配置, 等待status = completed 时取 report_url, 执行notify 流程. 
+```
+{
+  "task_id": "2847520f-1e81-4e60-97fe-e0bfe142d999",
+  "status": "completed",
+  "start_time": "2025-05-30 09:02:32",
+  "end_time": "2025-05-30 09:25:43",
+  "result": {
+    "report_url": "http://192.168.1.118:59996/test_report20250530_092534/"
+  },
+  "error": null
+}
+
+```
+4.最后检查一下, 整个生命周期应该被记录在数据库, 以不同状态表名不同步骤, 每次执行下一步时更新status , 有助排查
 
 
 
@@ -535,3 +583,12 @@ WHERE id=3;
 },
 
 在你开始修改之前， 你应该以触发接口 deploy_and_test 为如何先了解这如何修改
+
+----
+兼容一个功能, 当 To 非有效邮箱时 收件人改为 config.AppConfig.Email.Username, 发件人改为 EMAIL_SEND_USERNAME 也就是发件人和收件人相同, 主要为了 让邮件有记录
+
+
+---
+ 现在有一个新需求: trigger test 页的item 支持配置 type , 也就是数据库需要一个新的字段存储, 默认为空, 也就是当前模式, 我会新增一个 type 固定为 hrun, 
+ 增加 type 的原因是, type 为 hrun 的项目, 在 preview 内容的获取上有区别, 当 type == hrun 时 获取方式是 go to -------------
+ 未实现, 改为 hrun report 增加 summary.json 接口实现 

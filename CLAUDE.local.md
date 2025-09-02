@@ -1,3 +1,4 @@
 - Do not execute psql-like commands, I will manually execute SQL files. You just need to generate them and notify me.
 - Do not run `npm run build`, you are in WSL and the project is in Windows. Notify me to manually do it.
 - Check my grammar. If there are any English spelling errors, automatically fix them.
+- when u add new func, add a english comment above funcname

@@ -71,6 +71,9 @@ class CRATApp {
         
         // Make TestTrigger available globally for BuildInfo communication
         window.TestTrigger = TestTrigger;
+        
+        // Make BuildInfo available globally for inline onclick handlers
+        window.BuildInfo = BuildInfo;
     }
 
     initRouting() {
