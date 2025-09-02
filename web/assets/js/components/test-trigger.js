@@ -54,10 +54,12 @@ class TestTrigger {
             this.renderTestItems();
             this.updateProcessingIndicator();
             
-            // 重新加载已展开项目的历史记录
-            this.expandedItems.forEach(itemId => {
-                this.loadDeployTestHistory(itemId);
-            });
+            // 重新加载已展开项目的历史记录 - 使用延迟确保DOM已渲染
+            setTimeout(() => {
+                this.expandedItems.forEach(itemId => {
+                    this.loadDeployTestHistory(itemId);
+                });
+            }, 100);
             
             console.log('Test items loaded and rendered successfully');
         } catch (error) {
@@ -420,10 +422,12 @@ class TestTrigger {
         this.attachEventListeners();
         this.loadParameterSetsForAllItems();
         
-        // Load history for expanded items
-        this.expandedItems.forEach(itemId => {
-            this.loadDeployTestHistory(itemId);
-        });
+        // Load history for expanded items - 使用延迟确保DOM已渲染
+        setTimeout(() => {
+            this.expandedItems.forEach(itemId => {
+                this.loadDeployTestHistory(itemId);
+            });
+        }, 50);
     }
 
     static attachEventListeners() {
@@ -1189,6 +1193,11 @@ class TestTrigger {
 
     static async loadDeployTestHistory(itemId) {
         const historyContent = document.querySelector(`.history-content[data-item-id="${itemId}"]`);
+        
+        if (!historyContent) {
+            console.warn(`History content element not found for item ${itemId}`);
+            return;
+        }
         
         try {
             historyContent.innerHTML = `
