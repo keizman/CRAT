@@ -43,7 +43,7 @@ INSERT INTO system_settings (key, value, description) VALUES
 ('project_name', 'Autotest Platform', '项目名称'),
 ('package_build_info_base_url', 'http://127.0.0.1:8080/job/', 'Jenkins构建信息基础URL'),
 ('package_download_base_url', 'http://127.0.0.1/build/', '包下载基础URL'),
-('external_test_server_url', 'http://192.168.1.118:8000', '外部测试服务器URL');
+('external_test_server_url', 'http://10.8.24.59:8000', '外部测试服务器URL');
 
 -- 4. 用户会话表 (简单认证)
 CREATE TABLE user_sessions (
@@ -130,7 +130,7 @@ INSERT INTO parameter_sets (name, description, parameters) VALUES
         "install_dir": "",
         "upgrade_type": "full",
         "test_path": "",
-        "base_url": "http://192.168.1.118:59996",
+        "base_url": "http://10.8.24.59:59996",
         "report_keyword": ""
     }'
 );

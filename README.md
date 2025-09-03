@@ -195,7 +195,7 @@ GRANT ALL PRIVILEGES ON DATABASE crat TO crat_user;
 
 #### 1.2 导入数据库表结构
 ```bash
-psql -h 192.168.1.117 -U postgres -d crat -f database/schema.sql
+psql -h 10.8.24.117 -U postgres -d crat -f database/schema.sql
 ```
 
 ### 2. 配置文件
@@ -211,7 +211,7 @@ DEBUG=false
 ADMIN_PASSWD=123456
 
 # Database (PostgreSQL)
-SQL_DSN=postgres://postgres:098lkj.@192.168.1.117:5432/crat
+SQL_DSN=postgres://postgres:098lkj.@10.8.24.117:5432/crat
 SQL_MAX_IDLE_CONNS=100
 SQL_MAX_OPEN_CONNS=1000
 SQL_MAX_LIFETIME=60
@@ -861,13 +861,13 @@ MIT License
 
       %% 步骤1: 下载包文件
       ExecuteDeployTest -->|步骤1| DownloadStep[downloadPackage]
-      DownloadStep -->|构建下载URL| PackageServer[包文件服务器<br/>192.168.1.117]
+      DownloadStep -->|构建下载URL| PackageServer[包文件服务器<br/>10.8.24.117]
       PackageServer -->|下载tar.gz包| LocalFile[本地/tmp目录]
       DownloadStep -->|更新状态为DOWNLOADED| PostgresDB
 
       %% 步骤2: 触发外部测试
       ExecuteDeployTest -->|步骤2| TriggerExternalTest[triggerExternalTest]
-      TriggerExternalTest -->|POST /api/deploy_and_test_mock| PythonServer[Python FastAPI服务器<br/>192.168.1.118:59996]
+      TriggerExternalTest -->|POST /api/deploy_and_test_mock| PythonServer[Python FastAPI服务器<br/>10.8.24.59:59996]
 
       %% Python服务器处理
       PythonServer --> ReceiveRequest[接收部署测试请求]
@@ -909,7 +909,7 @@ MIT License
       RunPytestScript --> PytestExecution[pytest命令执行]
       PytestExecution --> AllureResults[生成Allure结果]
       AllureResults --> GenerateReport[生成Allure HTML报告]
-      GenerateReport --> NginxServer[Nginx服务器<br/>192.168.1.118:59996]
+      GenerateReport --> NginxServer[Nginx服务器<br/>10.8.24.59:59996]
       NginxServer --> ReportURL[返回报告URL]
 
       %% 任务完成

@@ -284,7 +284,7 @@ DEBUG=false
 ADMIN_PASSWD=123456
 
 # Database (PostgreSQL)
-SQL_DSN=postgres://postgres:098lkj.@192.168.1.117:5432/crat
+SQL_DSN=postgres://postgres:098lkj.@10.8.24.117:5432/crat
 SQL_MAX_IDLE_CONNS=100
 SQL_MAX_OPEN_CONNS=1000
 SQL_MAX_LIFETIME=60
@@ -401,7 +401,7 @@ Not_in_porject_trigger_server 文件这是触发测试的服务器, 提取返回
   "start_time": "2025-05-30 09:02:32",
   "end_time": "2025-05-30 09:25:43",
   "result": {
-    "report_url": "http://192.168.1.118:59996/test_report20250530_092534/"
+    "report_url": "http://10.8.24.59:59996/test_report20250530_092534/"
   },
   "error": null
 }
@@ -415,7 +415,7 @@ Not_in_porject_trigger_server 文件这是触发测试的服务器, 提取返回
 
 修改触发测试时的操作： 
 这是一个示例请求. 我来说说这些参数你要如何提供, 
-- uri 是 setting table 的  external_test_server_url	目前是 http://192.168.1.118:8000 /api/deploy_and_test_mock 是固定地址 
+- uri 是 setting table 的  external_test_server_url	目前是 http://10.8.24.59:8000 /api/deploy_and_test_mock 是固定地址 
 - service_name 是 test_items.name 这里不用管大小写, server 端有做适配, 你只需传值即可,  report_keyword 与 
 - package_path 是从用户点击触发测试的版本的包路径 如  res curl -v http://192.168.1.39/build/CDN/SsgAgent/20250613-master-27580974441fd35aa299d78a392aa4b59b018c27/el7/ | grep {test_item..name} | if herf > 1 : do grep "release" 取出的. (使用 go code 实现) if len(res) < 1  raise error.  if endswitch not tar.gz raise error 接口过滤后结果可能为 <a href="ssgagent-5.3.1-27580974-el7-20250613.tar.gz">ssgagent-5.3.1-27580974-el7-20250613.tar.gz</a>        13-Jun-2025 15:37            16777430 ---------拼接结果 http://192.168.1.39/build/CDN/SsgAgent/20250613-master-27580974441fd35aa299d78a392aa4b59b018c27/el7/ssgagent-5.3.1-27580974-el7-20250613.tar.gz 下载到本地 /tmp 目录 这就是 package_path
 - install_dir 和 test_path 置空即可 目前是server固定了枚举值, 
@@ -429,7 +429,7 @@ curl -X POST "http://localhost:8000/api/deploy_and_test_mock" \
     "install_dir": "",
     "upgrade_type": "full",
     "test_path": "",
-    "base_url": "http://192.168.1.118:59996",
+    "base_url": "http://10.8.24.59:59996",
     "report_keyword": "CDS"
   }'
   
@@ -449,7 +449,7 @@ curl -X POST "http://localhost:8000/api/deploy_and_test_mock" \
       "success": true
     },
     "test": {
-      "report_url": "http://192.168.1.118:59996/cds_5329/"
+      "report_url": "http://10.8.24.59:59996/cds_5329/"
     }
   },
   "error": null
@@ -473,12 +473,12 @@ split routers (all of endpoints )from main.go to router/api-router.go
 
 ----
 
-preview功能改版， 通过在 report后拼接widgets/summary.json 可以获取到 summary 数据你需要做的时按照图中 的样式展示出来，  -- curl -v http://192.168.1.118:59996/cds_5329/widgets/summary.json
-*   Trying 192.168.1.118:59996...
-* Connected to 192.168.1.118 (192.168.1.118) port 59996
+preview功能改版， 通过在 report后拼接widgets/summary.json 可以获取到 summary 数据你需要做的时按照图中 的样式展示出来，  -- curl -v http://10.8.24.59:59996/cds_5329/widgets/summary.json
+*   Trying 10.8.24.59:59996...
+* Connected to 10.8.24.59 (10.8.24.59) port 59996
 * using HTTP/1.x
 > GET /cds_5329/widgets/summary.json HTTP/1.1
-> Host: 192.168.1.118:59996
+> Host: 10.8.24.59:59996
 > User-Agent: curl/8.13.0
 > Accept: */*
 >

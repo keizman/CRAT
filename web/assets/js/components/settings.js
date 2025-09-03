@@ -158,7 +158,7 @@ class Settings {
             project_name: 'Autotest Platform',
             package_build_info_base_url: 'http://127.0.0.1:8080/job/',
             package_download_base_url: 'http://127.0.0.1/build/',
-            external_test_server_url: 'http://192.168.1.118:59996'
+            external_test_server_url: 'http://10.8.24.59:59996'
         };
 
         try {
